@@ -272,6 +272,7 @@ simple_lsp is under active development. Here's what's planned:
 | Feature | Description |
 |---------|-------------|
 | **ECF Parsing** | Understand project configuration, library paths, targets |
+| **UCF (Universe Configuration)** | Multi-project scope - define library ecosystems for heat maps and cross-project tools |
 | **Cross-Project Navigation** | Jump to definitions in simple_* libraries |
 | ~~**Inheritance Chain Display**~~ | ✅ **DONE in v0.3.0** - Show full inheritance path from EIFGENs |
 | **Contract Visualization** | Display require/ensure/invariant in hover with inheritance |
