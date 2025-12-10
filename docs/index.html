@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>simple_lsp - Eiffel LSP for VS Code</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>simple_lsp</h1>
+            <p class="tagline">Eiffel Language Server Protocol for VS Code</p>
+            <nav>
+                <a href="#overview">Overview</a>
+                <a href="#features">Features</a>
+                <a href="#installation">Installation</a>
+                <a href="#usage">Usage</a>
+                <a href="#api">API</a>
+                <a href="https://github.com/simple-eiffel/simple_lsp">GitHub</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <section id="overview">
+            <h2>Overview</h2>
+            <p>
+                <strong>simple_lsp</strong> brings modern IDE features to Eiffel development in Visual Studio Code.
+                Built with the <a href="https://github.com/simple-eiffel">Simple Eiffel</a> ecosystem,
+                it provides intelligent code navigation, completion, and documentation features.
+            </p>
+            <p>
+                The LSP server is written entirely in Eiffel using Design by Contract principles,
+                providing robust and reliable language services.
+            </p>
+        </section>
+
+        <section id="features">
+            <h2>Features</h2>
+            <div class="feature-grid">
+                <div class="feature">
+                    <h3>Go to Definition</h3>
+                    <p>Ctrl+Click on any class or feature name to jump directly to its definition.</p>
+                </div>
+                <div class="feature">
+                    <h3>Hover Documentation</h3>
+                    <p>Hover over identifiers to see feature signatures, contracts, and comments.</p>
+                </div>
+                <div class="feature">
+                    <h3>Code Completion</h3>
+                    <p>Ctrl+Space for intelligent autocomplete of classes and features.</p>
+                </div>
+                <div class="feature">
+                    <h3>Document Symbols</h3>
+                    <p>Ctrl+Shift+O to see an outline of features in the current file.</p>
+                </div>
+                <div class="feature">
+                    <h3>Workspace Symbols</h3>
+                    <p>Ctrl+T to search for any symbol across your entire workspace.</p>
+                </div>
+                <div class="feature">
+                    <h3>Find References</h3>
+                    <p>Shift+F12 to find all definitions of a symbol.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="installation">
+            <h2>Installation</h2>
+
+            <h3>Windows Installer (Recommended)</h3>
+            <ol>
+                <li>Download <code>simple_lsp_setup_0.1.0.exe</code> from
+                    <a href="https://github.com/simple-eiffel/simple_lsp/releases">Releases</a></li>
+                <li>Run the installer</li>
+                <li>Open VS Code with any folder containing <code>.e</code> files</li>
+                <li>Start coding!</li>
+            </ol>
+
+            <h3>Manual Installation</h3>
+            <ol>
+                <li>Download and extract the release archive</li>
+                <li>Copy <code>simple_lsp.exe</code> to a permanent location</li>
+                <li>Set the <code>SIMPLE_LSP</code> environment variable:
+                    <pre><code>setx SIMPLE_LSP "C:\tools\simple_lsp"</code></pre>
+                </li>
+                <li>Install the VS Code extension from the included <code>.vsix</code> file</li>
+            </ol>
+        </section>
+
+        <section id="usage">
+            <h2>Usage</h2>
+
+            <h3>VS Code Configuration</h3>
+            <p>The extension automatically finds the LSP server. To configure manually:</p>
+            <pre><code>{
+    "eiffel.lsp.serverPath": "C:/path/to/simple_lsp.exe"
+}</code></pre>
+
+            <h3>How It Works</h3>
+            <ol>
+                <li>VS Code launches <code>simple_lsp.exe</code> when you open an Eiffel file</li>
+                <li>The server parses and indexes all <code>.e</code> files in your workspace</li>
+                <li>Symbol information is stored in <code>.eiffel_lsp/symbols.db</code></li>
+                <li>The server responds to LSP requests (hover, definition, completion, etc.)</li>
+                <li>Debug logs are written to <code>.eiffel_lsp/lsp.log</code></li>
+            </ol>
+        </section>
+
+        <section id="api">
+            <h2>API Design</h2>
+            <p>simple_lsp follows Design by Contract principles:</p>
+            <pre><code class="eiffel">feature -- LSP Operations
+
+    handle_hover (a_params: JSON_OBJECT): detachable JSON_OBJECT
+            -- Handle textDocument/hover request
+        require
+            params_exist: a_params /= Void
+            has_position: a_params.has_key ("position")
+        do
+            -- Implementation
+        ensure
+            valid_result: Result /= Void implies Result.has_key ("contents")
+        end</code></pre>
+        </section>
+
+        <section id="building">
+            <h2>Building from Source</h2>
+            <h3>Prerequisites</h3>
+            <ul>
+                <li>EiffelStudio 25.02+</li>
+                <li>Visual Studio 2022 (for C compilation)</li>
+                <li>Node.js 18+ (for VS Code extension)</li>
+            </ul>
+
+            <h3>Build Commands</h3>
+            <pre><code># Set environment variables for simple_* libraries
+export SIMPLE_JSON=/path/to/simple_json
+export SIMPLE_SQL=/path/to/simple_sql
+# ... etc
+
+# Compile LSP server (finalized with contracts)
+cd /path/to/simple_lsp
+ec.exe -batch -config simple_lsp.ecf -target simple_lsp_exe -finalize -keep -c_compile
+
+# Build VS Code extension
+cd vscode-extension
+npm install && npm run compile && npx vsce package</code></pre>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>
+                Part of the <a href="https://github.com/simple-eiffel">Simple Eiffel</a> ecosystem.
+                Licensed under the <a href="https://opensource.org/licenses/MIT">MIT License</a>.
+            </p>
+            <p>
+                <a href="https://github.com/simple-eiffel/simple_lsp">GitHub</a> |
+                <a href="https://simple-eiffel.github.io">Documentation</a> |
+                <a href="https://www.eiffel.org">Eiffel Language</a>
+            </p>
+        </div>
+    </footer>
+</body>
+</html>

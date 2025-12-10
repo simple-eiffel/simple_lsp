@@ -1,0 +1,75 @@
+{
+  "name": "eiffel-lsp",
+  "displayName": "Eiffel Language Support",
+  "description": "Eiffel language support via simple_lsp - Go to Definition, Hover, Completion",
+  "version": "0.1.0",
+  "publisher": "simple-eiffel",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/simple-eiffel/simple_lsp"
+  },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:eiffel"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "eiffel",
+        "aliases": ["Eiffel", "eiffel"],
+        "extensions": [".e", ".ecf"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "eiffel",
+        "scopeName": "source.eiffel",
+        "path": "./syntaxes/eiffel.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "Eiffel LSP",
+      "properties": {
+        "eiffel.lsp.serverPath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Path to simple_lsp executable. Supports environment variables: `$SIMPLE_LSP`, `${VAR}`, `%VAR%`. If empty, searches: 1) `$SIMPLE_LSP` env var, 2) bundled with extension, 3) workspace `.eiffel_lsp/` folder, 4) system PATH, 5) common install locations."
+        },
+        "eiffel.lsp.logLevel": {
+          "type": "string",
+          "enum": ["error", "warning", "info", "debug"],
+          "default": "info",
+          "description": "Log level for LSP server"
+        },
+        "eiffel.lsp.trace.server": {
+          "type": "string",
+          "enum": ["off", "messages", "verbose"],
+          "default": "off",
+          "description": "Trace communication between VS Code and the LSP server"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.75.0",
+    "typescript": "^5.0.0",
+    "@vscode/vsce": "^2.22.0"
+  }
+}

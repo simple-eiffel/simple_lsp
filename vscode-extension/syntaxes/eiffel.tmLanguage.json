@@ -1,0 +1,111 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Eiffel",
+  "scopeName": "source.eiffel",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#constants" },
+    { "include": "#operators" },
+    { "include": "#types" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-dash.eiffel",
+          "match": "--.*$"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.eiffel",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.eiffel",
+              "match": "%."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.eiffel",
+          "match": "'[^']*'"
+        },
+        {
+          "name": "string.quoted.other.multiline.eiffel",
+          "begin": "\"\\[",
+          "end": "\\]\""
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.eiffel",
+          "match": "\\b(if|then|else|elseif|end|from|until|loop|across|as|check|debug|inspect|when|rescue|retry|do|once|deferred)\\b"
+        },
+        {
+          "name": "keyword.declaration.eiffel",
+          "match": "\\b(class|inherit|create|feature|note|indexing|redefine|rename|export|undefine|select|require|ensure|invariant|variant|local|attribute|obsolete|external|alias|frozen|expanded|separate)\\b"
+        },
+        {
+          "name": "keyword.other.eiffel",
+          "match": "\\b(agent|attached|detachable|like|Current|Result|Precursor|old|strip|all|some|and|or|xor|not|implies)\\b"
+        },
+        {
+          "name": "storage.modifier.eiffel",
+          "match": "\\b(deferred|frozen|expanded|separate)\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.eiffel",
+          "match": "\\b(True|False|Void)\\b"
+        },
+        {
+          "name": "constant.numeric.integer.eiffel",
+          "match": "\\b[0-9]+\\b"
+        },
+        {
+          "name": "constant.numeric.float.eiffel",
+          "match": "\\b[0-9]+\\.[0-9]+([eE][+-]?[0-9]+)?\\b"
+        },
+        {
+          "name": "constant.numeric.hex.eiffel",
+          "match": "\\b0[xX][0-9a-fA-F]+\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.assignment.eiffel",
+          "match": ":=|\\?="
+        },
+        {
+          "name": "keyword.operator.comparison.eiffel",
+          "match": "=|/=|<|>|<=|>="
+        },
+        {
+          "name": "keyword.operator.arithmetic.eiffel",
+          "match": "\\+|-|\\*|/|//|\\\\\\\\|\\^"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "entity.name.type.eiffel",
+          "match": "\\b[A-Z][A-Z0-9_]*\\b"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<system xmlns="http://www.eiffel.com/developers/xml/configuration-1-22-0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.eiffel.com/developers/xml/configuration-1-22-0 http://www.eiffel.com/developers/xml/configuration-1-22-0.xsd" name="simple_lsp" uuid="E8F7D6C5-B4A3-9281-0FED-CBA987654321" library_target="simple_lsp">
+	<description>Eiffel Language Server Protocol implementation for VS Code</description>
+	<target name="simple_lsp">
+		<root all_classes="true"/>
+		<version major="0" minor="1" release="0" build="1"/>
+		<option warning="warning" syntax="standard" manifest_array_type="mismatch_warning">
+			<assertions precondition="true" postcondition="true" check="true" invariant="true" loop="true" supplier_precondition="true"/>
+		</option>
+		<capability>
+			<concurrency support="scoop" use="scoop"/>
+			<void_safety support="all" use="all"/>
+		</capability>
+		<library name="base" location="$ISE_LIBRARY\library\base\base.ecf"/>
+		<library name="time" location="$ISE_LIBRARY\library\time\time.ecf"/>
+		<library name="simple_json" location="$SIMPLE_JSON\simple_json.ecf"/>
+		<library name="simple_sql" location="$SIMPLE_SQL\simple_sql.ecf"/>
+		<library name="simple_process" location="$SIMPLE_PROCESS\simple_process.ecf"/>
+		<library name="simple_file" location="$SIMPLE_FILE\simple_file.ecf"/>
+		<library name="simple_eiffel_parser" location="$SIMPLE_EIFFEL_PARSER\simple_eiffel_parser.ecf"/>
+		<cluster name="src" location=".\src\" recursive="true"/>
+	</target>
+	<target name="simple_lsp_exe" extends="simple_lsp">
+		<root class="LSP_APPLICATION" feature="make"/>
+		<setting name="console_application" value="true"/>
+		<capability>
+			<concurrency support="scoop" use="scoop"/>
+			<void_safety support="all" use="all"/>
+		</capability>
+	</target>
+	<target name="simple_lsp_tests" extends="simple_lsp">
+		<root class="LSP_TEST_SUITE" feature="make"/>
+		<library name="testing" location="$ISE_LIBRARY\library\testing\testing.ecf"/>
+		<cluster name="tests" location=".\tests\" recursive="true"/>
+	</target>
+</system>

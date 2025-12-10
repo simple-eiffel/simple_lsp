@@ -1,0 +1,34 @@
+# Eiffel compiled/generated files
+EIFGENs/
+*.melted
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Backup files
+*.swp
+*.bak
+*~
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# LSP runtime files
+.eiffel_lsp/
+exception_trace.log
+
+# VS Code extension build output
+vscode-extension/node_modules/
+vscode-extension/out/
+vscode-extension/*.vsix
+
+# Inno Setup output
+dist/output/
