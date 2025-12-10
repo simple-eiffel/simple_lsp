@@ -39,11 +39,15 @@ feature {NONE} -- Initialization
 			create hover_handler.make (symbol_db, logger, eifgens_parser)
 			create completion_handler.make (symbol_db, logger)
 			create navigation_handler.make (symbol_db, logger, parser)
+			create universe.make
 			is_initialized := False
 			is_running := False
 			eifgens_loaded := False
 
 			log_info ("simple_lsp v" + Version + " starting for workspace: " + a_workspace_root)
+
+			-- Load universe configuration for cross-library navigation
+			load_universe_config
 		ensure
 			root_set: workspace_root = a_workspace_root
 			not_initialized: not is_initialized
@@ -58,6 +62,7 @@ feature {NONE} -- Initialization
 			hover_handler_created: hover_handler /= Void
 			completion_handler_created: completion_handler /= Void
 			navigation_handler_created: navigation_handler /= Void
+			universe_created: universe /= Void
 		end
 
 feature -- Constants
@@ -87,6 +92,9 @@ feature -- Access
 
 	navigation_handler: LSP_NAVIGATION_HANDLER
 			-- Handler for navigation operations (definition, references, symbols)
+
+	universe: SIMPLE_UCF
+			-- Universe configuration for cross-library navigation
 
 feature -- Main Loop
 
@@ -732,13 +740,28 @@ feature {NONE} -- Diagnostics
 feature {NONE} -- Indexing
 
 	index_workspace
-			-- Index all Eiffel files in workspace
+			-- Index all Eiffel files in workspace and universe libraries
 		local
 			l_count: INTEGER
+			l_lib_count: INTEGER
 		do
 			log_info ("Starting workspace indexing: " + workspace_root)
 			l_count := index_directory (workspace_root)
-			log_info ("Indexed " + l_count.out + " Eiffel files")
+			log_info ("Indexed " + l_count.out + " Eiffel files from workspace")
+
+			-- Index universe libraries for cross-library navigation
+			if universe.is_valid then
+				log_info ("Indexing " + universe.libraries.count.out + " universe libraries...")
+				across universe.libraries as lib loop
+					if not lib.resolved_path.is_empty then
+						log_info ("  Indexing library: " + lib.name)
+						l_lib_count := l_lib_count + index_directory (lib.resolved_path.to_string_8)
+					end
+				end
+				log_info ("Indexed " + l_lib_count.out + " Eiffel files from universe libraries")
+			end
+
+			log_info ("Total indexed: " + (l_count + l_lib_count).out + " Eiffel files")
 		end
 
 	index_directory (a_path: STRING): INTEGER
@@ -2415,6 +2438,41 @@ feature {NONE} -- Implementation
 	eifgens_loaded: BOOLEAN
 			-- Has EIFGENs metadata been loaded?
 
+feature {NONE} -- Universe Configuration
+
+	load_universe_config
+			-- Load universe configuration for cross-library navigation
+			-- Tries: 1) .ucf file in workspace 2) auto-discovery from environment
+		local
+			l_ucf_file: SIMPLE_FILE
+			l_ucf_path: STRING
+		do
+			-- First try to find a .ucf file in the workspace
+			l_ucf_path := workspace_root + "/simple_universe.ucf"
+			create l_ucf_file.make (l_ucf_path)
+
+			if l_ucf_file.exists then
+				log_info ("Loading universe from: " + l_ucf_path)
+				universe.load_file (l_ucf_path.to_string_32)
+				if universe.is_valid then
+					log_info ("Universe loaded: " + universe.universe_name + " with " + universe.libraries.count.out + " libraries")
+				else
+					log_warning ("Failed to load UCF file, trying auto-discovery")
+					universe.discover_from_environment
+				end
+			else
+				-- No UCF file, try auto-discovery from SIMPLE_* environment variables
+				log_info ("No UCF file found, auto-discovering from SIMPLE_* environment variables...")
+				universe.discover_from_environment
+			end
+
+			if universe.is_valid then
+				log_info ("Universe configuration ready: " + universe.libraries.count.out + " libraries discovered")
+			else
+				log_warning ("No universe configuration available - cross-library navigation disabled")
+			end
+		end
+
 invariant
 	workspace_not_void: workspace_root /= Void
 	workspace_not_empty: not workspace_root.is_empty
@@ -2424,5 +2482,6 @@ invariant
 	logger_exists: logger /= Void
 	cache_exists: document_cache /= Void
 	eifgens_parser_exists: eifgens_parser /= Void
+	universe_exists: universe /= Void
 
 end
