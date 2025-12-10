@@ -14,8 +14,8 @@
             <nav>
                 <a href="#overview">Overview</a>
                 <a href="#features">Features</a>
+                <a href="#roadmap">Roadmap</a>
                 <a href="#installation">Installation</a>
-                <a href="#usage">Usage</a>
                 <a href="#api">API</a>
                 <a href="https://github.com/simple-eiffel/simple_lsp">GitHub</a>
             </nav>
@@ -64,6 +64,79 @@
                     <p>Shift+F12 to find all definitions of a symbol.</p>
                 </div>
             </div>
+        </section>
+
+        <section id="roadmap">
+            <h2>Roadmap: Coming Soon</h2>
+            <p>simple_lsp is under active development. Here's what we're building:</p>
+
+            <h3>Core LSP Features (In Progress)</h3>
+            <div class="feature-grid">
+                <div class="feature">
+                    <h3>Rename Symbol</h3>
+                    <p>Safely rename features and classes across your entire workspace.</p>
+                </div>
+                <div class="feature">
+                    <h3>Signature Help</h3>
+                    <p>Show parameter hints and types while typing function calls.</p>
+                </div>
+                <div class="feature">
+                    <h3>Diagnostics</h3>
+                    <p>Real-time syntax error highlighting as you type.</p>
+                </div>
+                <div class="feature">
+                    <h3>Formatting</h3>
+                    <p>Auto-format Eiffel code on save with configurable style.</p>
+                </div>
+            </div>
+
+            <h3>Eiffel-Specific Innovations</h3>
+            <p>Features that leverage Eiffel's unique Design by Contract capabilities:</p>
+            <div class="feature-grid">
+                <div class="feature">
+                    <h3>Contract Lens</h3>
+                    <p>CodeLens showing contract coverage per feature - see which features have require/ensure.</p>
+                </div>
+                <div class="feature">
+                    <h3>Invariant Inspector</h3>
+                    <p>Hover over any class to see the full invariant chain from all ancestors.</p>
+                </div>
+                <div class="feature">
+                    <h3>Void-Safety Hints</h3>
+                    <p>Inline hints showing detachable/attached status for safer code.</p>
+                </div>
+                <div class="feature">
+                    <h3>Feature Origin Tracking</h3>
+                    <p>See which ancestor introduced or redefined a feature at a glance.</p>
+                </div>
+            </div>
+
+            <h3>simple_* Ecosystem Integration</h3>
+            <p>Powerful features leveraging other simple_* libraries:</p>
+            <ul>
+                <li><strong>AI Code Assistant</strong> (simple_ai_client) - Claude-powered suggestions, explanations, refactoring</li>
+                <li><strong>Live File Watching</strong> (simple_watcher) - Instant re-indexing when files change</li>
+                <li><strong>Project Knowledge Base</strong> (simple_oracle) - Learn your codebase patterns, remember across sessions</li>
+                <li><strong>Test Runner</strong> (simple_testing) - Run tests from VS Code, show coverage inline</li>
+                <li><strong>Build Integration</strong> (simple_process) - Compile from VS Code, show errors inline</li>
+            </ul>
+
+            <h3>Visionary Features (Research)</h3>
+            <p>Ideas we're exploring that could revolutionize Eiffel development:</p>
+            <ul>
+                <li><strong>Contract-Driven Completion</strong> - Suggest code that satisfies postconditions</li>
+                <li><strong>Invariant-Aware Refactoring</strong> - Ensure refactorings preserve class invariants</li>
+                <li><strong>AI Contract Synthesis</strong> - Generate contracts from natural language specs</li>
+                <li><strong>Oracle-Powered Search</strong> - Natural language queries like "find all features that modify balance"</li>
+                <li><strong>Cross-Session Learning</strong> - LSP learns your patterns, suggests based on history</li>
+            </ul>
+
+            <h3>Platform Support</h3>
+            <ul>
+                <li><strong>Windows 10/11 (64-bit)</strong> - Available now</li>
+                <li><strong>Linux (x64)</strong> - Planned</li>
+                <li><strong>macOS (Intel & Apple Silicon)</strong> - Planned</li>
+            </ul>
         </section>
 
         <section id="installation">

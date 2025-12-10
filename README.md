@@ -236,6 +236,102 @@ feature -- LSP Operations
         end
 ```
 
+---
+
+## Roadmap: Coming Soon
+
+simple_lsp is under active development. Here's what's planned:
+
+### Core LSP Features (In Progress)
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **Rename Symbol** | Planned | Safely rename features/classes across workspace |
+| **Signature Help** | Planned | Show parameter hints while typing |
+| **Folding Ranges** | Planned | Collapse feature clauses, invariants, notes |
+| **Formatting** | Planned | Auto-format Eiffel code on save |
+| **Diagnostics** | Planned | Real-time syntax error highlighting |
+| **Semantic Tokens** | Planned | Rich syntax highlighting (contracts, agents, etc.) |
+| **Call Hierarchy** | Planned | View incoming/outgoing calls for any feature |
+| **Type Hierarchy** | Planned | Visualize inheritance relationships |
+
+### Advanced Features (Planned)
+
+| Feature | Description |
+|---------|-------------|
+| **ECF Parsing** | Understand project configuration, library paths, targets |
+| **Cross-Project Navigation** | Jump to definitions in simple_* libraries |
+| **Inheritance Chain Display** | Show full inheritance path with redefinitions |
+| **Contract Visualization** | Display require/ensure/invariant in hover with inheritance |
+| **Agent Signature Expansion** | Expand agent types to show full signatures |
+| **SCOOP Awareness** | Highlight separate calls, detect potential issues |
+
+### Eiffel-Specific Innovations
+
+These features leverage Eiffel's unique capabilities:
+
+| Innovation | Description |
+|------------|-------------|
+| **Contract Lens** | CodeLens showing contract coverage per feature |
+| **Invariant Inspector** | Hover over class to see full invariant chain |
+| **Void-Safety Hints** | Inline hints for detachable/attached status |
+| **Creation Procedure Finder** | Quick access to all creation procedures for a type |
+| **Feature Origin Tracking** | Show which ancestor introduced/redefined a feature |
+| **Catcall Detection** | Highlight potential catcall violations |
+| **Once Status** | Show once feature values and initialization status |
+
+### Integration with simple_* Ecosystem
+
+Leveraging other simple_* libraries for powerful features:
+
+| Integration | Library | Description |
+|-------------|---------|-------------|
+| **AI Code Assistant** | simple_ai_client | Claude-powered code suggestions, explanations, refactoring |
+| **Live File Watching** | simple_watcher | Instant re-indexing when files change |
+| **Project Knowledge Base** | simple_oracle | Learn your codebase patterns, remember across sessions |
+| **Documentation Generation** | simple_markdown | Generate markdown docs from code comments |
+| **Test Runner Integration** | simple_testing | Run tests from VS Code, show coverage |
+| **Build System** | simple_process | Compile from VS Code, show errors inline |
+
+### Visionary Features (Research)
+
+Ideas we're exploring that could revolutionize Eiffel development:
+
+| Vision | Description |
+|--------|-------------|
+| **Contract-Driven Completion** | Suggest code that satisfies postconditions |
+| **Invariant-Aware Refactoring** | Ensure refactorings preserve class invariants |
+| **SCOOP Visualization** | Show separate object communication graph |
+| **Design by Contract Metrics** | Track contract coverage, complexity, quality |
+| **AI Contract Synthesis** | Generate contracts from natural language specs |
+| **Oracle-Powered Search** | Natural language queries: "find all features that modify balance" |
+| **Cross-Session Learning** | LSP learns your patterns, suggests based on history |
+| **Collaborative Contracts** | Share contract templates across team/organization |
+
+### Platform Support
+
+| Platform | Status |
+|----------|--------|
+| Windows 10/11 (64-bit) | **Available** |
+| Linux (x64) | Planned |
+| macOS (Intel) | Planned |
+| macOS (Apple Silicon) | Planned |
+
+---
+
+## Current Limitations
+
+Being transparent about what's not yet implemented:
+
+- **Syntax errors** don't show inline diagnostics (parser recovers but doesn't report)
+- **Cross-file analysis** is limited to symbol database (no type inference yet)
+- **Completion** shows all symbols, not context-aware filtering
+- **References** finds definitions, not all usages
+- **No ECF support** yet (doesn't read project configuration)
+- **Single workspace** only (no multi-root workspace support)
+
+---
+
 ## Contributing
 
 Contributions welcome! Please:
@@ -245,6 +341,12 @@ Contributions welcome! Please:
 3. Follow Eiffel coding standards
 4. Add tests for new features
 5. Submit a pull request
+
+Areas where we especially need help:
+- Linux/macOS testing and builds
+- ECF parsing implementation
+- Advanced parser features (type inference)
+- VS Code extension improvements
 
 ## License
 
