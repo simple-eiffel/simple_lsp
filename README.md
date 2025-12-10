@@ -1,12 +1,21 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/simple-eiffel/claude_eiffel_op_docs/main/artwork/LOGO.png" alt="simple_ library logo" width="400">
+</p>
+
 # simple_lsp
+
+**[Documentation](https://simple-eiffel.github.io/simple_lsp/)** | **[GitHub](https://github.com/simple-eiffel/simple_lsp)**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Eiffel](https://img.shields.io/badge/Eiffel-25.02-blue.svg)](https://www.eiffel.org/)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.75+-007ACC.svg)](https://code.visualstudio.com/)
+[![Design by Contract](https://img.shields.io/badge/DbC-enforced-orange.svg)]()
 
-**Eiffel Language Server Protocol (LSP) implementation for VS Code and other editors.**
+Eiffel Language Server Protocol (LSP) implementation for VS Code and other editors.
 
 Part of the [Simple Eiffel](https://github.com/simple-eiffel) ecosystem.
+
+**Developed using AI-assisted methodology:** Built interactively with Claude Opus 4.5 following rigorous Design by Contract principles.
 
 ## Overview
 
