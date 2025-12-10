@@ -5,24 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>simple_lsp - Eiffel LSP for VS Code</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/png" href="images/logo.png">
 </head>
 <body>
     <header>
-        <div class="container">
-            <h1>simple_lsp</h1>
-            <p class="tagline">Eiffel Language Server Protocol for VS Code</p>
-            <nav>
-                <a href="#overview">Overview</a>
-                <a href="#features">Features</a>
-                <a href="#roadmap">Roadmap</a>
-                <a href="#installation">Installation</a>
-                <a href="#api">API</a>
-                <a href="https://github.com/simple-eiffel/simple_lsp">GitHub</a>
-            </nav>
+        <div class="logo-container">
+            <img src="https://raw.githubusercontent.com/simple-eiffel/claude_eiffel_op_docs/main/artwork/LOGO.png" alt="simple_* logo" class="logo">
+        </div>
+        <h1>simple_lsp</h1>
+        <p class="tagline">Eiffel Language Server Protocol for VS Code</p>
+        <div class="badges">
+            <span class="badge badge-version">v0.1.0</span>
+            <span class="badge badge-license">MIT</span>
+            <span class="badge badge-status">Beta</span>
         </div>
     </header>
 
-    <main class="container">
+    <nav>
+        <ul>
+            <li><a href="#overview">Overview</a></li>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#quick-start">Quick Start</a></li>
+            <li><a href="#roadmap">Roadmap</a></li>
+            <li><a href="https://github.com/simple-eiffel/simple_lsp">GitHub</a></li>
+        </ul>
+    </nav>
+
+    <main>
         <section id="overview">
             <h2>Overview</h2>
             <p>
@@ -32,38 +41,81 @@
             </p>
             <p>
                 The LSP server is written entirely in Eiffel using Design by Contract principles,
-                providing robust and reliable language services.
+                providing robust and reliable language services. Part of the <strong>simple_*</strong>
+                ecosystem of focused, single-purpose Eiffel libraries.
             </p>
         </section>
 
         <section id="features">
-            <h2>Features</h2>
+            <h2>Current Features</h2>
             <div class="feature-grid">
-                <div class="feature">
-                    <h3>Go to Definition</h3>
+                <div class="feature-card">
+                    <h4>Go to Definition</h4>
                     <p>Ctrl+Click on any class or feature name to jump directly to its definition.</p>
                 </div>
-                <div class="feature">
-                    <h3>Hover Documentation</h3>
+                <div class="feature-card">
+                    <h4>Hover Documentation</h4>
                     <p>Hover over identifiers to see feature signatures, contracts, and comments.</p>
                 </div>
-                <div class="feature">
-                    <h3>Code Completion</h3>
+                <div class="feature-card">
+                    <h4>Code Completion</h4>
                     <p>Ctrl+Space for intelligent autocomplete of classes and features.</p>
                 </div>
-                <div class="feature">
-                    <h3>Document Symbols</h3>
+                <div class="feature-card">
+                    <h4>Document Symbols</h4>
                     <p>Ctrl+Shift+O to see an outline of features in the current file.</p>
                 </div>
-                <div class="feature">
-                    <h3>Workspace Symbols</h3>
+                <div class="feature-card">
+                    <h4>Workspace Symbols</h4>
                     <p>Ctrl+T to search for any symbol across your entire workspace.</p>
                 </div>
-                <div class="feature">
-                    <h3>Find References</h3>
+                <div class="feature-card">
+                    <h4>Find References</h4>
                     <p>Shift+F12 to find all definitions of a symbol.</p>
                 </div>
             </div>
+        </section>
+
+        <section id="quick-start">
+            <h2>Quick Start</h2>
+
+            <div class="quick-start">
+                <h3>Windows Installer (Recommended)</h3>
+                <ol>
+                    <li>Download <code>simple_lsp_setup_0.1.0.exe</code> from
+                        <a href="https://github.com/simple-eiffel/simple_lsp/releases">Releases</a></li>
+                    <li>Run the installer</li>
+                    <li>Open VS Code with any folder containing <code>.e</code> files</li>
+                    <li>Start coding!</li>
+                </ol>
+            </div>
+
+            <h3>Manual Installation</h3>
+            <ol>
+                <li>Download and extract the release archive</li>
+                <li>Copy <code>simple_lsp.exe</code> to a permanent location</li>
+                <li>Set the <code>SIMPLE_LSP</code> environment variable:
+<pre><code>setx SIMPLE_LSP "C:\tools\simple_lsp"</code></pre>
+                </li>
+                <li>Install the VS Code extension from the included <code>.vsix</code> file</li>
+            </ol>
+
+            <h3>VS Code Configuration</h3>
+            <p>The extension automatically finds the LSP server. To configure manually:</p>
+<pre><code>{
+    "eiffel.lsp.serverPath": "C:/path/to/simple_lsp.exe"
+}</code></pre>
+        </section>
+
+        <section id="how-it-works">
+            <h2>How It Works</h2>
+            <ol>
+                <li>VS Code launches <code>simple_lsp.exe</code> when you open an Eiffel file</li>
+                <li>The server parses and indexes all <code>.e</code> files in your workspace</li>
+                <li>Symbol information is stored in <code>.eiffel_lsp/symbols.db</code> (SQLite)</li>
+                <li>The server responds to LSP requests (hover, definition, completion, etc.)</li>
+                <li>Debug logs are written to <code>.eiffel_lsp/lsp.log</code></li>
+            </ol>
         </section>
 
         <section id="roadmap">
@@ -71,131 +123,82 @@
             <p>simple_lsp is under active development. Here's what we're building:</p>
 
             <h3>Core LSP Features (In Progress)</h3>
-            <div class="feature-grid">
-                <div class="feature">
-                    <h3>Rename Symbol</h3>
-                    <p>Safely rename features and classes across your entire workspace.</p>
-                </div>
-                <div class="feature">
-                    <h3>Signature Help</h3>
-                    <p>Show parameter hints and types while typing function calls.</p>
-                </div>
-                <div class="feature">
-                    <h3>Diagnostics</h3>
-                    <p>Real-time syntax error highlighting as you type.</p>
-                </div>
-                <div class="feature">
-                    <h3>Formatting</h3>
-                    <p>Auto-format Eiffel code on save with configurable style.</p>
-                </div>
+            <div class="roadmap-item planned">
+                <h4>Rename Symbol</h4>
+                <p>Safely rename features and classes across your entire workspace.</p>
+            </div>
+            <div class="roadmap-item planned">
+                <h4>Signature Help</h4>
+                <p>Show parameter hints and types while typing function calls.</p>
+            </div>
+            <div class="roadmap-item planned">
+                <h4>Diagnostics</h4>
+                <p>Real-time syntax error highlighting as you type.</p>
+            </div>
+            <div class="roadmap-item planned">
+                <h4>Formatting</h4>
+                <p>Auto-format Eiffel code on save with configurable style.</p>
             </div>
 
             <h3>Eiffel-Specific Innovations</h3>
             <p>Features that leverage Eiffel's unique Design by Contract capabilities:</p>
             <div class="feature-grid">
-                <div class="feature">
-                    <h3>Contract Lens</h3>
-                    <p>CodeLens showing contract coverage per feature - see which features have require/ensure.</p>
+                <div class="feature-card">
+                    <h4>Contract Lens</h4>
+                    <p>CodeLens showing contract coverage per feature.</p>
                 </div>
-                <div class="feature">
-                    <h3>Invariant Inspector</h3>
-                    <p>Hover over any class to see the full invariant chain from all ancestors.</p>
+                <div class="feature-card">
+                    <h4>Invariant Inspector</h4>
+                    <p>Hover over any class to see the full invariant chain.</p>
                 </div>
-                <div class="feature">
-                    <h3>Void-Safety Hints</h3>
-                    <p>Inline hints showing detachable/attached status for safer code.</p>
+                <div class="feature-card">
+                    <h4>Void-Safety Hints</h4>
+                    <p>Inline hints showing detachable/attached status.</p>
                 </div>
-                <div class="feature">
-                    <h3>Feature Origin Tracking</h3>
-                    <p>See which ancestor introduced or redefined a feature at a glance.</p>
+                <div class="feature-card">
+                    <h4>Feature Origin</h4>
+                    <p>See which ancestor introduced or redefined a feature.</p>
                 </div>
             </div>
 
             <h3>simple_* Ecosystem Integration</h3>
-            <p>Powerful features leveraging other simple_* libraries:</p>
             <ul>
-                <li><strong>AI Code Assistant</strong> (simple_ai_client) - Claude-powered suggestions, explanations, refactoring</li>
-                <li><strong>Live File Watching</strong> (simple_watcher) - Instant re-indexing when files change</li>
-                <li><strong>Project Knowledge Base</strong> (simple_oracle) - Learn your codebase patterns, remember across sessions</li>
-                <li><strong>Test Runner</strong> (simple_testing) - Run tests from VS Code, show coverage inline</li>
-                <li><strong>Build Integration</strong> (simple_process) - Compile from VS Code, show errors inline</li>
+                <li><strong>AI Code Assistant</strong> (simple_ai_client) - Claude-powered suggestions</li>
+                <li><strong>Live File Watching</strong> (simple_watcher) - Instant re-indexing</li>
+                <li><strong>Project Knowledge Base</strong> (simple_oracle) - Learn your patterns</li>
+                <li><strong>Test Runner</strong> (simple_testing) - Run tests from VS Code</li>
+                <li><strong>Build Integration</strong> (simple_process) - Compile from VS Code</li>
             </ul>
 
             <h3>Visionary Features (Research)</h3>
-            <p>Ideas we're exploring that could revolutionize Eiffel development:</p>
-            <ul>
-                <li><strong>Contract-Driven Completion</strong> - Suggest code that satisfies postconditions</li>
-                <li><strong>Invariant-Aware Refactoring</strong> - Ensure refactorings preserve class invariants</li>
-                <li><strong>AI Contract Synthesis</strong> - Generate contracts from natural language specs</li>
-                <li><strong>Oracle-Powered Search</strong> - Natural language queries like "find all features that modify balance"</li>
-                <li><strong>Cross-Session Learning</strong> - LSP learns your patterns, suggests based on history</li>
-            </ul>
-
-            <h3>Platform Support</h3>
-            <ul>
-                <li><strong>Windows 10/11 (64-bit)</strong> - Available now</li>
-                <li><strong>Linux (x64)</strong> - Planned</li>
-                <li><strong>macOS (Intel & Apple Silicon)</strong> - Planned</li>
-            </ul>
-        </section>
-
-        <section id="installation">
-            <h2>Installation</h2>
-
-            <h3>Windows Installer (Recommended)</h3>
-            <ol>
-                <li>Download <code>simple_lsp_setup_0.1.0.exe</code> from
-                    <a href="https://github.com/simple-eiffel/simple_lsp/releases">Releases</a></li>
-                <li>Run the installer</li>
-                <li>Open VS Code with any folder containing <code>.e</code> files</li>
-                <li>Start coding!</li>
-            </ol>
-
-            <h3>Manual Installation</h3>
-            <ol>
-                <li>Download and extract the release archive</li>
-                <li>Copy <code>simple_lsp.exe</code> to a permanent location</li>
-                <li>Set the <code>SIMPLE_LSP</code> environment variable:
-                    <pre><code>setx SIMPLE_LSP "C:\tools\simple_lsp"</code></pre>
-                </li>
-                <li>Install the VS Code extension from the included <code>.vsix</code> file</li>
-            </ol>
-        </section>
-
-        <section id="usage">
-            <h2>Usage</h2>
-
-            <h3>VS Code Configuration</h3>
-            <p>The extension automatically finds the LSP server. To configure manually:</p>
-            <pre><code>{
-    "eiffel.lsp.serverPath": "C:/path/to/simple_lsp.exe"
-}</code></pre>
-
-            <h3>How It Works</h3>
-            <ol>
-                <li>VS Code launches <code>simple_lsp.exe</code> when you open an Eiffel file</li>
-                <li>The server parses and indexes all <code>.e</code> files in your workspace</li>
-                <li>Symbol information is stored in <code>.eiffel_lsp/symbols.db</code></li>
-                <li>The server responds to LSP requests (hover, definition, completion, etc.)</li>
-                <li>Debug logs are written to <code>.eiffel_lsp/lsp.log</code></li>
-            </ol>
+            <div class="roadmap-item research">
+                <h4>Contract-Driven Completion</h4>
+                <p>Suggest code that satisfies postconditions.</p>
+            </div>
+            <div class="roadmap-item research">
+                <h4>AI Contract Synthesis</h4>
+                <p>Generate contracts from natural language specs.</p>
+            </div>
+            <div class="roadmap-item research">
+                <h4>Oracle-Powered Search</h4>
+                <p>Natural language queries like "find all features that modify balance".</p>
+            </div>
         </section>
 
         <section id="api">
             <h2>API Design</h2>
             <p>simple_lsp follows Design by Contract principles:</p>
-            <pre><code class="eiffel">feature -- LSP Operations
 
-    handle_hover (a_params: JSON_OBJECT): detachable JSON_OBJECT
-            -- Handle textDocument/hover request
-        require
-            params_exist: a_params /= Void
-            has_position: a_params.has_key ("position")
-        do
-            -- Implementation
-        ensure
-            valid_result: Result /= Void implies Result.has_key ("contents")
-        end</code></pre>
+            <div class="api-section">
+                <h3>handle_hover</h3>
+                <div class="signature">handle_hover (a_params: JSON_OBJECT): detachable JSON_OBJECT</div>
+                <p>Handle textDocument/hover request - returns hover content for position.</p>
+                <div class="contracts">
+                    <h4>Contracts</h4>
+                    <div class="require">require: a_params /= Void and a_params.has_key ("position")</div>
+                    <div class="ensure">ensure: Result /= Void implies Result.has_key ("contents")</div>
+                </div>
+            </div>
         </section>
 
         <section id="building">
@@ -208,33 +211,28 @@
             </ul>
 
             <h3>Build Commands</h3>
-            <pre><code># Set environment variables for simple_* libraries
-export SIMPLE_JSON=/path/to/simple_json
-export SIMPLE_SQL=/path/to/simple_sql
-# ... etc
+<pre><code><span class="comment"># Set environment variables for simple_* libraries</span>
+<span class="keyword">export</span> SIMPLE_JSON=/path/to/simple_json
+<span class="keyword">export</span> SIMPLE_SQL=/path/to/simple_sql
+<span class="comment"># ... etc</span>
 
-# Compile LSP server (finalized with contracts)
-cd /path/to/simple_lsp
+<span class="comment"># Compile LSP server (finalized with contracts)</span>
+<span class="keyword">cd</span> /path/to/simple_lsp
 ec.exe -batch -config simple_lsp.ecf -target simple_lsp_exe -finalize -keep -c_compile
 
-# Build VS Code extension
-cd vscode-extension
+<span class="comment"># Build VS Code extension</span>
+<span class="keyword">cd</span> vscode-extension
 npm install && npm run compile && npx vsce package</code></pre>
         </section>
     </main>
 
     <footer>
-        <div class="container">
-            <p>
-                Part of the <a href="https://github.com/simple-eiffel">Simple Eiffel</a> ecosystem.
-                Licensed under the <a href="https://opensource.org/licenses/MIT">MIT License</a>.
-            </p>
-            <p>
-                <a href="https://github.com/simple-eiffel/simple_lsp">GitHub</a> |
-                <a href="https://simple-eiffel.github.io">Documentation</a> |
-                <a href="https://www.eiffel.org">Eiffel Language</a>
-            </p>
-        </div>
+        <p>&copy; 2025 simple_* ecosystem. MIT License.</p>
+        <p>
+            <a href="https://github.com/simple-eiffel/simple_lsp">GitHub</a> |
+            <a href="https://simple-eiffel.github.io">Documentation</a> |
+            <a href="https://www.eiffel.org">Eiffel Language</a>
+        </p>
     </footer>
 </body>
 </html>
