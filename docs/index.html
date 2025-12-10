@@ -15,7 +15,7 @@
         <h1>simple_lsp</h1>
         <p class="tagline">Eiffel Language Server Protocol for VS Code</p>
         <div class="badges">
-            <span class="badge badge-version">v0.1.0</span>
+            <span class="badge badge-version">v0.6.0</span>
             <span class="badge badge-license">MIT</span>
             <span class="badge badge-status">Beta</span>
         </div>
@@ -82,7 +82,7 @@
             <div class="quick-start">
                 <h3>Windows Installer (Recommended)</h3>
                 <ol>
-                    <li>Download <code>simple_lsp_setup_0.1.0.exe</code> from
+                    <li>Download <code>simple_lsp_setup_0.6.0.exe</code> from
                         <a href="https://github.com/simple-eiffel/simple_lsp/releases">Releases</a></li>
                     <li>Run the installer</li>
                     <li>Open VS Code with any folder containing <code>.e</code> files</li>
@@ -122,18 +122,32 @@
             <h2>Roadmap: Coming Soon</h2>
             <p>simple_lsp is under active development. Here's what we're building:</p>
 
+            <h3>Completed Features (v0.6.0)</h3>
+            <div class="roadmap-item done">
+                <h4>✅ Rename Symbol</h4>
+                <p>Safely rename features and classes across your entire workspace (F2 or right-click).</p>
+            </div>
+            <div class="roadmap-item done">
+                <h4>✅ Client/Supplier Display</h4>
+                <p>Show clients (who uses me) and suppliers (who I use) in hover documentation.</p>
+            </div>
+            <div class="roadmap-item done">
+                <h4>✅ Inheritance Chain Display</h4>
+                <p>Show full inheritance path from EIFGENs metadata on hover.</p>
+            </div>
+            <div class="roadmap-item done">
+                <h4>✅ Build Commands</h4>
+                <p>Melt (Ctrl+Shift+B), Freeze (Ctrl+Shift+F), Finalize (Ctrl+Shift+R) from VS Code.</p>
+            </div>
+
             <h3>Core LSP Features (In Progress)</h3>
             <div class="roadmap-item planned">
-                <h4>Rename Symbol</h4>
-                <p>Safely rename features and classes across your entire workspace.</p>
+                <h4>Diagnostics</h4>
+                <p>Real-time syntax error highlighting from ec.exe output.</p>
             </div>
             <div class="roadmap-item planned">
                 <h4>Signature Help</h4>
                 <p>Show parameter hints and types while typing function calls.</p>
-            </div>
-            <div class="roadmap-item planned">
-                <h4>Diagnostics</h4>
-                <p>Real-time syntax error highlighting as you type.</p>
             </div>
             <div class="roadmap-item planned">
                 <h4>Formatting</h4>

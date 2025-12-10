@@ -7,7 +7,7 @@
 ; ============================================================================
 
 #define MyAppName "Eiffel LSP"
-#define MyAppVersion "0.1.0"
+#define MyAppVersion "0.6.0"
 #define MyAppPublisher "Simple Eiffel"
 #define MyAppURL "https://github.com/simple-eiffel/simple_lsp"
 #define MyAppExeName "simple_lsp.exe"
@@ -31,6 +31,8 @@ OutputBaseFilename=simple_lsp_setup_{#MyAppVersion}
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
+WizardImageFile=wizard_image.png
+WizardSmallImageFile=wizard_small.png
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 ChangesEnvironment=yes
@@ -47,8 +49,8 @@ Name: "vscodeext"; Description: "Install VS Code extension"; GroupDescription: "
 ; Main executable (F_code with -keep: optimized + contracts enabled)
 Source: "..\EIFGENs\simple_lsp_exe\F_code\simple_lsp.exe"; DestDir: "{app}"; Flags: ignoreversion
 
-; VS Code extension
-Source: "..\vscode-extension\eiffel-lsp-*.vsix"; DestDir: "{app}"; Flags: ignoreversion
+; VS Code extension (specific version, not wildcard to avoid including old versions)
+Source: "..\vscode-extension\eiffel-lsp-{#MyAppVersion}.vsix"; DestDir: "{app}"; Flags: ignoreversion
 
 ; Documentation
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
@@ -64,7 +66,7 @@ Root: HKCU; Subkey: "Environment"; ValueType: string; ValueName: "SIMPLE_LSP"; V
 
 [Run]
 ; Install VS Code extension
-Filename: "cmd.exe"; Parameters: "/c code --install-extension ""{app}\eiffel-lsp-0.1.0.vsix"""; StatusMsg: "Installing VS Code extension..."; Flags: runhidden waituntilterminated; Tasks: vscodeext; Check: VSCodeInstalled
+Filename: "cmd.exe"; Parameters: "/c code --install-extension ""{app}\eiffel-lsp-0.6.0.vsix"""; StatusMsg: "Installing VS Code extension..."; Flags: runhidden waituntilterminated; Tasks: vscodeext; Check: VSCodeInstalled
 
 [Code]
 // Check if VS Code is installed

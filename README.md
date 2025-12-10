@@ -34,7 +34,7 @@ simple_lsp brings modern IDE features to Eiffel development in VS Code:
 
 ### Windows Installer (Recommended)
 
-1. Download `simple_lsp_setup_0.3.1.exe` from [Releases](https://github.com/simple-eiffel/simple_lsp/releases)
+1. Download `simple_lsp_setup_0.6.0.exe` from [Releases](https://github.com/simple-eiffel/simple_lsp/releases)
 2. Run the installer
 3. Open VS Code with any folder containing `.e` files
 4. Start coding!
@@ -71,7 +71,7 @@ install.bat
 3. Install VS Code extension:
    - Open VS Code
    - Press `Ctrl+Shift+P` > "Extensions: Install from VSIX..."
-   - Select `eiffel-lsp-0.3.1.vsix`
+   - Select `eiffel-lsp-0.6.0.vsix`
 
 ## Distribution Files
 
@@ -161,14 +161,18 @@ npx vsce package
 ### Build Outputs
 
 - `EIFGENs/simple_lsp_exe/F_code/simple_lsp.exe` - Optimized with contracts (13MB)
-- `vscode-extension/eiffel-lsp-0.3.1.vsix` - VS Code extension
+- `vscode-extension/eiffel-lsp-0.6.0.vsix` - VS Code extension
 
 ## Project Structure
 
 ```
 simple_lsp/
 ├── src/                           # Eiffel source code
-│   ├── lsp_server.e               # Main LSP server
+│   ├── lsp_server.e               # Main LSP server (orchestration)
+│   ├── lsp_hover_handler.e        # Hover documentation handler
+│   ├── lsp_completion_handler.e   # Code completion handler
+│   ├── lsp_navigation_handler.e   # Go-to-definition, references
+│   ├── lsp_rename_handler.e       # Symbol rename handler
 │   ├── lsp_message.e              # JSON-RPC message handling
 │   ├── lsp_symbol_database.e      # SQLite symbol storage
 │   └── lsp_logger.e               # Debug logging
@@ -248,9 +252,9 @@ simple_lsp is under active development. Here's what's planned:
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| **Client/Supplier Display** | **Next** | Show clients and suppliers in hover (who uses me, who I use) |
-| **Diagnostics** | Planned | Real-time syntax error highlighting from ec.exe output |
-| **Rename Symbol** | Planned | Safely rename features/classes across workspace |
+| ~~**Client/Supplier Display**~~ | ✅ **DONE in v0.6.0** | Show clients and suppliers in hover (who uses me, who I use) |
+| ~~**Rename Symbol**~~ | ✅ **DONE in v0.6.0** | Safely rename features/classes across workspace |
+| **Diagnostics** | **Next** | Real-time syntax error highlighting from ec.exe output |
 | **Signature Help** | Planned | Show parameter hints while typing |
 | **Folding Ranges** | Planned | Collapse feature clauses, invariants, notes |
 | **Formatting** | Planned | Auto-format Eiffel code on save |

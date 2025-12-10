@@ -36,9 +36,9 @@ feature {NONE} -- Initialization
 			create document_cache.make (10)
 			create eifgens_parser.default_create
 			create rename_handler.make (symbol_db, logger)
-			create hover_handler.make (symbol_db, logger)
+			create hover_handler.make (symbol_db, logger, eifgens_parser)
 			create completion_handler.make (symbol_db, logger)
-			create navigation_handler.make (symbol_db, logger)
+			create navigation_handler.make (symbol_db, logger, parser)
 			is_initialized := False
 			is_running := False
 			eifgens_loaded := False
@@ -337,9 +337,9 @@ feature {NONE} -- Lifecycle Handlers
 					create symbol_db.make (l_db_dir + "/symbols.db")
 					-- Re-create handlers with new database and logger references
 					create rename_handler.make (symbol_db, logger)
-					create hover_handler.make (symbol_db, logger)
+					create hover_handler.make (symbol_db, logger, eifgens_parser)
 					create completion_handler.make (symbol_db, logger)
-					create navigation_handler.make (symbol_db, logger)
+					create navigation_handler.make (symbol_db, logger, parser)
 					log_info ("Re-initialized logger and database at: " + l_db_dir)
 				end
 			end
@@ -493,7 +493,7 @@ feature {NONE} -- Document Handlers
 feature {NONE} -- Feature Handlers
 
 	handle_definition (a_msg: LSP_MESSAGE)
-			-- Handle textDocument/definition - go to definition
+			-- Handle textDocument/definition - delegates to navigation_handler
 		require
 			msg_not_void: a_msg /= Void
 			is_request: a_msg.is_request
@@ -512,7 +512,7 @@ feature {NONE} -- Feature Handlers
 			log_info ("Definition requested for: '" + l_word + "' at " + l_path + ":" + l_line.out + ":" + l_col.out)
 
 			if not l_word.is_empty then
-				l_location := find_definition (l_word)
+				l_location := navigation_handler.find_definition (l_word)
 			end
 
 			if attached l_location then
@@ -525,7 +525,7 @@ feature {NONE} -- Feature Handlers
 		end
 
 	handle_hover (a_msg: LSP_MESSAGE)
-			-- Handle textDocument/hover
+			-- Handle textDocument/hover - delegates to hover_handler
 		require
 			msg_not_void: a_msg /= Void
 			is_request: a_msg.is_request
@@ -544,7 +544,7 @@ feature {NONE} -- Feature Handlers
 			log_debug ("Hover requested for: '" + l_word + "'")
 
 			if not l_word.is_empty then
-				l_hover := get_hover_info (l_word)
+				l_hover := hover_handler.get_hover_info (l_word)
 			end
 
 			if attached l_hover then
@@ -555,7 +555,7 @@ feature {NONE} -- Feature Handlers
 		end
 
 	handle_completion (a_msg: LSP_MESSAGE)
-			-- Handle textDocument/completion
+			-- Handle textDocument/completion - delegates to completion_handler
 		require
 			msg_not_void: a_msg /= Void
 			is_request: a_msg.is_request
@@ -563,12 +563,12 @@ feature {NONE} -- Feature Handlers
 			l_items: SIMPLE_JSON_ARRAY
 		do
 			log_debug ("Completion requested")
-			l_items := get_completion_items
+			l_items := completion_handler.get_completion_items
 			send_response_array (a_msg.id, l_items)
 		end
 
 	handle_document_symbol (a_msg: LSP_MESSAGE)
-			-- Handle textDocument/documentSymbol
+			-- Handle textDocument/documentSymbol - delegates to navigation_handler
 		require
 			msg_not_void: a_msg /= Void
 			is_request: a_msg.is_request
@@ -579,7 +579,7 @@ feature {NONE} -- Feature Handlers
 			l_uri := a_msg.text_document_uri
 			l_path := uri_to_path (l_uri)
 			log_debug ("Document symbols requested for: " + l_path)
-			l_symbols := get_document_symbols (l_path)
+			l_symbols := navigation_handler.get_document_symbols (l_path)
 			send_response_array (a_msg.id, l_symbols)
 		end
 
@@ -989,10 +989,12 @@ feature {NONE} -- EIFGENs Metadata
 			log_info ("Looking for EIFGENs metadata in: " + workspace_root)
 			if eifgens_parser.load_from_project (workspace_root) then
 				eifgens_loaded := True
+				hover_handler.set_eifgens_loaded (True)
 				log_info ("EIFGENs metadata loaded: " + eifgens_parser.class_count.out + " classes")
 			else
 				log_info ("No EIFGENs metadata found (project not compiled yet?)")
 				eifgens_loaded := False
+				hover_handler.set_eifgens_loaded (False)
 			end
 		end
 
@@ -1683,7 +1685,7 @@ feature {NONE} -- Document Symbols
 feature {NONE} -- Workspace Symbols
 
 	handle_workspace_symbol (a_msg: LSP_MESSAGE)
-			-- Handle workspace/symbol - search symbols across workspace (Ctrl+T)
+			-- Handle workspace/symbol - delegates to navigation_handler
 		require
 			msg_not_void: a_msg /= Void
 			is_request: a_msg.is_request
@@ -1698,7 +1700,7 @@ feature {NONE} -- Workspace Symbols
 				end
 			end
 			log_info ("Workspace symbol search: '" + l_query + "'")
-			l_symbols := get_workspace_symbols (l_query)
+			l_symbols := navigation_handler.get_workspace_symbols (l_query)
 			send_response_array (a_msg.id, l_symbols)
 		end
 
@@ -1766,7 +1768,7 @@ feature {NONE} -- Workspace Symbols
 feature {NONE} -- Find References
 
 	handle_references (a_msg: LSP_MESSAGE)
-			-- Handle textDocument/references - find all references to symbol
+			-- Handle textDocument/references - delegates to navigation_handler
 		require
 			msg_not_void: a_msg /= Void
 			is_request: a_msg.is_request
@@ -1784,7 +1786,7 @@ feature {NONE} -- Find References
 			l_word := word_at_position (l_path, l_line, l_col)
 			log_info ("References requested for: '" + l_word + "'")
 
-			l_references := find_references (l_word)
+			l_references := navigation_handler.find_references (l_word)
 			send_response_array (a_msg.id, l_references)
 		end
 
