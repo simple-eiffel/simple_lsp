@@ -1,8 +1,8 @@
 {
   "name": "eiffel-lsp",
   "displayName": "Eiffel Language Support",
-  "description": "Eiffel language support via simple_lsp - Go to Definition, Hover, Completion",
-  "version": "0.1.0",
+  "description": "Eiffel language support via simple_lsp - Go to Definition, Hover, Completion, Build",
+  "version": "0.6.0",
   "publisher": "simple-eiffel",
   "repository": {
     "type": "git",
@@ -19,6 +19,70 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "commands": [
+      {
+        "command": "eiffel.melt",
+        "title": "Eiffel: Melt (Quick Compile)"
+      },
+      {
+        "command": "eiffel.freeze",
+        "title": "Eiffel: Freeze (Full Workbench)"
+      },
+      {
+        "command": "eiffel.finalize",
+        "title": "Eiffel: Finalize (Release Build)"
+      },
+      {
+        "command": "eiffel.compileTests",
+        "title": "Eiffel: Compile Tests"
+      },
+      {
+        "command": "eiffel.runTests",
+        "title": "Eiffel: Run Tests"
+      },
+      {
+        "command": "eiffel.clean",
+        "title": "Eiffel: Clean (Delete EIFGENs)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "eiffel.melt",
+        "key": "ctrl+shift+b",
+        "when": "editorLangId == eiffel"
+      },
+      {
+        "command": "eiffel.freeze",
+        "key": "ctrl+shift+f",
+        "when": "editorLangId == eiffel"
+      },
+      {
+        "command": "eiffel.finalize",
+        "key": "ctrl+shift+r",
+        "when": "editorLangId == eiffel"
+      }
+    ],
+    "taskDefinitions": [
+      {
+        "type": "eiffel",
+        "required": ["task"],
+        "properties": {
+          "task": {
+            "type": "string",
+            "enum": ["melt", "freeze", "finalize", "compile-tests", "run-tests", "clean"],
+            "description": "The Eiffel task type"
+          },
+          "ecfFile": {
+            "type": "string",
+            "description": "Path to .ecf file (optional, auto-detected)"
+          },
+          "target": {
+            "type": "string",
+            "description": "Target name (optional)"
+          }
+        }
+      }
+    ],
     "languages": [
       {
         "id": "eiffel",
@@ -53,6 +117,11 @@
           "enum": ["off", "messages", "verbose"],
           "default": "off",
           "description": "Trace communication between VS Code and the LSP server"
+        },
+        "eiffel.compilerPath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Path to EiffelStudio ec.exe compiler. If empty, uses: 1) `ISE_EIFFEL` env var, 2) common installation paths."
         }
       }
     }

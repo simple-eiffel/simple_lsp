@@ -242,6 +242,66 @@ feature -- Feature Operations
 			end
 		end
 
+feature -- Type Reference Operations (Client/Supplier)
+
+	add_type_reference (a_from_class_id: INTEGER; a_to_type_name: STRING; a_context: STRING)
+			-- Record that a_from_class uses a_to_type_name
+			-- Context: "attribute", "local", "argument", "return", "creation", "inherit"
+		require
+			class_exists: a_from_class_id > 0
+			type_not_empty: a_to_type_name /= Void and then not a_to_type_name.is_empty
+		do
+			db.execute_with_args (
+				"INSERT OR IGNORE INTO type_references (from_class_id, to_type_name, context) VALUES (?, ?, ?)",
+				<<a_from_class_id, a_to_type_name.as_upper, a_context>>)
+		end
+
+	suppliers_of (a_class_name: STRING): ARRAYED_LIST [STRING]
+			-- Get types that a_class_name uses (its suppliers)
+		require
+			name_not_empty: a_class_name /= Void and then not a_class_name.is_empty
+		local
+			l_result: SIMPLE_SQL_RESULT
+		do
+			create Result.make (10)
+			l_result := db.query_with_args (
+				"SELECT DISTINCT tr.to_type_name FROM type_references tr " +
+				"JOIN classes c ON tr.from_class_id = c.id " +
+				"WHERE c.name = ? COLLATE NOCASE " +
+				"ORDER BY tr.to_type_name",
+				<<a_class_name>>)
+			across l_result.rows as row loop
+				Result.extend (row.string_value ("to_type_name").to_string_8)
+			end
+		end
+
+	clients_of (a_class_name: STRING): ARRAYED_LIST [STRING]
+			-- Get classes that use a_class_name (its clients)
+		require
+			name_not_empty: a_class_name /= Void and then not a_class_name.is_empty
+		local
+			l_result: SIMPLE_SQL_RESULT
+		do
+			create Result.make (10)
+			l_result := db.query_with_args (
+				"SELECT DISTINCT c.name FROM type_references tr " +
+				"JOIN classes c ON tr.from_class_id = c.id " +
+				"WHERE tr.to_type_name = ? COLLATE NOCASE " +
+				"ORDER BY c.name",
+				<<a_class_name>>)
+			across l_result.rows as row loop
+				Result.extend (row.string_value ("name").to_string_8)
+			end
+		end
+
+	clear_type_references (a_class_id: INTEGER)
+			-- Clear type references for a class (before reparsing)
+		require
+			class_exists: a_class_id > 0
+		do
+			db.execute_with_args ("DELETE FROM type_references WHERE from_class_id = ?", <<a_class_id>>)
+		end
+
 feature -- Inheritance Operations
 
 	add_inheritance (a_child_id: INTEGER; a_parent_name: STRING)
@@ -337,6 +397,18 @@ feature -- Diagnostics
 			db.execute_with_args ("DELETE FROM parse_errors WHERE file_path = ?", <<a_path>>)
 		end
 
+	all_file_paths: ARRAYED_LIST [STRING]
+			-- Get all indexed file paths
+		local
+			l_result: SIMPLE_SQL_RESULT
+		do
+			create Result.make (50)
+			l_result := db.query ("SELECT DISTINCT file_path FROM classes ORDER BY file_path")
+			across l_result.rows as row loop
+				Result.extend (row.string_value ("file_path").to_string_8)
+			end
+		end
+
 feature -- Lifecycle
 
 	close
@@ -427,6 +499,18 @@ feature {NONE} -- Schema
 				")")
 
 			db.execute ("CREATE INDEX IF NOT EXISTS idx_errors_file ON parse_errors(file_path)")
+
+			-- Type references table for client/supplier relationships
+			db.execute ("CREATE TABLE IF NOT EXISTS type_references (" +
+				"id INTEGER PRIMARY KEY, " +
+				"from_class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE, " +
+				"to_type_name TEXT NOT NULL, " +
+				"context TEXT NOT NULL, " +
+				"UNIQUE(from_class_id, to_type_name, context)" +
+				")")
+
+			db.execute ("CREATE INDEX IF NOT EXISTS idx_typeref_from ON type_references(from_class_id)")
+			db.execute ("CREATE INDEX IF NOT EXISTS idx_typeref_to ON type_references(to_type_name)")
 		end
 
 feature {NONE} -- Implementation

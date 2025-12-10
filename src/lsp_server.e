@@ -33,10 +33,17 @@ feature {NONE} -- Initialization
 			create symbol_db.make (l_db_dir + "/symbols.db")
 			create parser.make
 			create logger.make (l_db_dir + "/lsp.log")
+			create document_cache.make (10)
+			create eifgens_parser.default_create
+			create rename_handler.make (symbol_db, logger)
+			create hover_handler.make (symbol_db, logger)
+			create completion_handler.make (symbol_db, logger)
+			create navigation_handler.make (symbol_db, logger)
 			is_initialized := False
 			is_running := False
+			eifgens_loaded := False
 
-			log_info ("LSP Server initialized for workspace: " + a_workspace_root)
+			log_info ("simple_lsp v" + Version + " starting for workspace: " + a_workspace_root)
 		ensure
 			root_set: workspace_root = a_workspace_root
 			not_initialized: not is_initialized
@@ -45,7 +52,18 @@ feature {NONE} -- Initialization
 			db_created: symbol_db /= Void
 			parser_created: parser /= Void
 			logger_created: logger /= Void
+			cache_created: document_cache /= Void
+			eifgens_parser_created: eifgens_parser /= Void
+			rename_handler_created: rename_handler /= Void
+			hover_handler_created: hover_handler /= Void
+			completion_handler_created: completion_handler /= Void
+			navigation_handler_created: navigation_handler /= Void
 		end
+
+feature -- Constants
+
+	Version: STRING = "0.6.0"
+			-- LSP server version (update on each release)
 
 feature -- Access
 
@@ -57,6 +75,18 @@ feature -- Access
 
 	is_running: BOOLEAN
 			-- Is server running?
+
+	rename_handler: LSP_RENAME_HANDLER
+			-- Handler for rename operations
+
+	hover_handler: LSP_HOVER_HANDLER
+			-- Handler for hover operations
+
+	completion_handler: LSP_COMPLETION_HANDLER
+			-- Handler for completion operations
+
+	navigation_handler: LSP_NAVIGATION_HANDLER
+			-- Handler for navigation operations (definition, references, symbols)
 
 feature -- Main Loop
 
@@ -254,6 +284,12 @@ feature {NONE} -- Message Processing
 				handle_workspace_symbol (a_msg)
 			elseif a_msg.method.same_string ("textDocument/references") then
 				handle_references (a_msg)
+			elseif a_msg.method.same_string ("textDocument/signatureHelp") then
+				handle_signature_help (a_msg)
+			elseif a_msg.method.same_string ("textDocument/rename") then
+				handle_rename (a_msg)
+			elseif a_msg.method.same_string ("textDocument/prepareRename") then
+				handle_prepare_rename (a_msg)
 			else
 				log_warning ("Unknown method: " + a_msg.method)
 			end
@@ -271,7 +307,9 @@ feature {NONE} -- Lifecycle Handlers
 			l_capabilities: SIMPLE_JSON_OBJECT
 			l_text_doc_sync: SIMPLE_JSON_OBJECT
 			l_completion_options: SIMPLE_JSON_OBJECT
+			l_server_info: SIMPLE_JSON_OBJECT
 			l_root_path: STRING
+			l_db_dir: STRING
 		do
 			log_info ("Handling initialize request")
 
@@ -289,6 +327,20 @@ feature {NONE} -- Lifecycle Handlers
 				if attached l_root_path and then not l_root_path.is_empty then
 					workspace_root := l_root_path
 					log_info ("Updated workspace_root to: " + workspace_root)
+
+					-- Re-create logger and database in the new workspace location
+					l_db_dir := workspace_root + "/.eiffel_lsp"
+					ensure_directory (l_db_dir)
+					logger.close
+					create logger.make (l_db_dir + "/lsp.log")
+					symbol_db.close
+					create symbol_db.make (l_db_dir + "/symbols.db")
+					-- Re-create handlers with new database and logger references
+					create rename_handler.make (symbol_db, logger)
+					create hover_handler.make (symbol_db, logger)
+					create completion_handler.make (symbol_db, logger)
+					create navigation_handler.make (symbol_db, logger)
+					log_info ("Re-initialized logger and database at: " + l_db_dir)
 				end
 			end
 
@@ -309,13 +361,21 @@ feature {NONE} -- Lifecycle Handlers
 			l_capabilities.put_boolean (True, "documentSymbolProvider").do_nothing
 			l_capabilities.put_boolean (True, "workspaceSymbolProvider").do_nothing
 			l_capabilities.put_boolean (True, "referencesProvider").do_nothing
+			l_capabilities.put_object (create_signature_help_options, "signatureHelpProvider").do_nothing
+			l_capabilities.put_boolean (True, "renameProvider").do_nothing
+
+			-- Build server info (shows in VS Code output)
+			create l_server_info.make
+			l_server_info.put_string ("simple_lsp", "name").do_nothing
+			l_server_info.put_string (Version, "version").do_nothing
 
 			create l_result.make
 			l_result.put_object (l_capabilities, "capabilities").do_nothing
+			l_result.put_object (l_server_info, "serverInfo").do_nothing
 
 			send_response (a_msg.id, l_result)
 			is_initialized := True
-			log_info ("Server initialized successfully")
+			log_info ("Server v" + Version + " initialized successfully")
 		ensure
 			initialized: is_initialized
 		end
@@ -327,6 +387,7 @@ feature {NONE} -- Lifecycle Handlers
 		do
 			log_info ("Client sent initialized - starting workspace indexing")
 			index_workspace
+			load_eifgens_metadata
 		end
 
 	handle_shutdown (a_msg: LSP_MESSAGE)
@@ -366,11 +427,44 @@ feature {NONE} -- Document Handlers
 		end
 
 	handle_did_change (a_msg: LSP_MESSAGE)
-			-- Handle textDocument/didChange
+			-- Handle textDocument/didChange - re-parse for diagnostics and cache content
 		require
 			msg_not_void: a_msg /= Void
+		local
+			l_uri, l_path: STRING
+			l_text: detachable STRING
+			l_ast: EIFFEL_AST
 		do
-			log_debug ("Document changed (will re-index on save)")
+			l_uri := a_msg.text_document_uri
+			l_path := uri_to_path (l_uri)
+			log_debug ("Document changed: " + l_path)
+
+			-- Extract the new content from contentChanges
+			if attached a_msg.params as l_params then
+				if attached l_params.array_item ("contentChanges") as l_changes then
+					if l_changes.count > 0 then
+						if attached l_changes.item (1) as l_change and then l_change.is_object then
+							if attached l_change.as_object.string_item ("text") as l_txt then
+								l_text := l_txt.to_string_8
+							end
+						end
+					end
+				end
+			end
+
+			-- Cache the document content and re-parse for diagnostics
+			if attached l_text and then not l_text.is_empty then
+				-- Cache the content for signature help and other features
+				document_cache.force (l_text, l_path)
+				log_debug ("Cached document content for: " + l_path + " (" + l_text.count.out + " chars)")
+
+				l_ast := parser.parse_string (l_text)
+				if l_ast.has_errors then
+					publish_diagnostics (l_uri, l_ast.parse_errors)
+				else
+					clear_diagnostics (l_uri)
+				end
+			end
 		end
 
 	handle_did_save (a_msg: LSP_MESSAGE)
@@ -554,6 +648,87 @@ feature {NONE} -- Response Helpers
 			write_message (l_notification.as_json)
 		end
 
+feature {NONE} -- Diagnostics
+
+	publish_diagnostics (a_uri: STRING; a_errors: ARRAYED_LIST [EIFFEL_PARSE_ERROR])
+			-- Publish diagnostics to client (red squiggles)
+		require
+			uri_not_void: a_uri /= Void
+			uri_not_empty: not a_uri.is_empty
+			errors_not_void: a_errors /= Void
+		local
+			l_params: SIMPLE_JSON_OBJECT
+			l_diagnostics: SIMPLE_JSON_ARRAY
+			l_diag: SIMPLE_JSON_OBJECT
+			l_range: SIMPLE_JSON_OBJECT
+			l_start_pos, l_end_pos: SIMPLE_JSON_OBJECT
+			l_severity: INTEGER
+		do
+			create l_diagnostics.make
+
+			across a_errors as err loop
+				-- Create diagnostic object
+				create l_diag.make
+
+				-- Range (start and end position)
+				create l_start_pos.make
+				l_start_pos.put_integer (err.line - 1, "line").do_nothing  -- LSP is 0-based
+				l_start_pos.put_integer (err.column - 1, "character").do_nothing
+
+				create l_end_pos.make
+				l_end_pos.put_integer (err.line - 1, "line").do_nothing
+				l_end_pos.put_integer (err.column + 10, "character").do_nothing  -- Highlight ~10 chars
+
+				create l_range.make
+				l_range.put_object (l_start_pos, "start").do_nothing
+				l_range.put_object (l_end_pos, "end").do_nothing
+
+				l_diag.put_object (l_range, "range").do_nothing
+
+				-- Severity: LSP uses 1=Error, 2=Warning, 3=Information, 4=Hint
+				-- Our parser uses same values, so direct mapping works
+				l_severity := err.severity
+				if l_severity < 1 or l_severity > 4 then
+					l_severity := 1 -- Default to error
+				end
+				l_diag.put_integer (l_severity, "severity").do_nothing
+
+				-- Source
+				l_diag.put_string ("eiffel-lsp", "source").do_nothing
+
+				-- Message
+				l_diag.put_string (err.message, "message").do_nothing
+
+				l_diagnostics.add_object (l_diag).do_nothing
+			end
+
+			-- Build params
+			create l_params.make
+			l_params.put_string (a_uri, "uri").do_nothing
+			l_params.put_array (l_diagnostics, "diagnostics").do_nothing
+
+			-- Send notification
+			send_notification ("textDocument/publishDiagnostics", l_params)
+			log_info ("Published " + a_errors.count.out + " diagnostics for: " + a_uri)
+		end
+
+	clear_diagnostics (a_uri: STRING)
+			-- Clear all diagnostics for a document
+		require
+			uri_not_void: a_uri /= Void
+			uri_not_empty: not a_uri.is_empty
+		local
+			l_params: SIMPLE_JSON_OBJECT
+			l_empty: SIMPLE_JSON_ARRAY
+		do
+			create l_empty.make
+			create l_params.make
+			l_params.put_string (a_uri, "uri").do_nothing
+			l_params.put_array (l_empty, "diagnostics").do_nothing
+			send_notification ("textDocument/publishDiagnostics", l_params)
+			log_debug ("Cleared diagnostics for: " + a_uri)
+		end
+
 feature {NONE} -- Indexing
 
 	index_workspace
@@ -615,17 +790,30 @@ feature {NONE} -- Indexing
 			l_ast: EIFFEL_AST
 			l_class_id: INTEGER
 			l_mtime: INTEGER
+			l_uri: STRING
 		do
 			create l_file.make (a_path)
 			if l_file.exists then
 				l_mtime := l_file.modified_timestamp
-				-- Check if file needs re-indexing
-				if symbol_db.file_mtime (a_path) < l_mtime then
-					log_debug ("Indexing: " + a_path)
-					l_content := l_file.read_text.to_string_8
-					l_ast := parser.parse_string (l_content)
+				l_uri := path_to_uri (a_path)
 
-					if not l_ast.has_errors then
+				log_debug ("Indexing: " + a_path)
+				l_content := l_file.read_text.to_string_8
+				l_ast := parser.parse_string (l_content)
+
+				-- Always publish diagnostics (either errors or clear)
+				if l_ast.has_errors then
+					publish_diagnostics (l_uri, l_ast.parse_errors)
+					log_warning ("Parse errors in: " + a_path)
+					across l_ast.parse_errors as err loop
+						log_warning ("  Line " + err.line.out + ": " + err.message)
+					end
+				else
+					-- No errors - clear any previous diagnostics
+					clear_diagnostics (l_uri)
+
+					-- Index the file if it changed
+					if symbol_db.file_mtime (a_path) < l_mtime then
 						across l_ast.classes as cls loop
 							-- Clear old data for this file
 							symbol_db.clear_file (a_path)
@@ -667,20 +855,233 @@ feature {NONE} -- Indexing
 								-- Add inheritance
 								across cls.parents as parent loop
 									symbol_db.add_inheritance (l_class_id, parent.parent_name)
+									-- Also record as type reference (inherit context)
+									symbol_db.add_type_reference (l_class_id, parent.parent_name, "inherit")
 								end
+
+								-- Extract type references for suppliers
+								extract_type_references (l_class_id, cls)
 							end
 							log_debug ("Indexed class: " + cls.name + " with " + cls.features.count.out + " features")
-						end
-					else
-						log_warning ("Parse errors in: " + a_path)
-						across l_ast.parse_errors as err loop
-							log_warning ("  Line " + err.line.out + ": " + err.message)
 						end
 					end
 				end
 			else
 				log_warning ("File not found: " + a_path)
 			end
+		end
+
+feature {NONE} -- Type Reference Extraction
+
+	extract_type_references (a_class_id: INTEGER; a_class: EIFFEL_CLASS_NODE)
+			-- Extract type references from class for supplier tracking
+		require
+			class_id_valid: a_class_id > 0
+			class_not_void: a_class /= Void
+		local
+			l_type: STRING
+		do
+			-- Clear old references for this class
+			symbol_db.clear_type_references (a_class_id)
+
+			-- Process each feature
+			across a_class.features as feat loop
+				-- Return type (function)
+				if attached feat.return_type as rt and then not rt.is_empty then
+					l_type := extract_base_type (rt)
+					if is_user_type (l_type) then
+						symbol_db.add_type_reference (a_class_id, l_type, "return")
+					end
+				end
+
+				-- Argument types
+				across feat.arguments as arg loop
+					l_type := extract_base_type (arg.arg_type)
+					if is_user_type (l_type) then
+						symbol_db.add_type_reference (a_class_id, l_type, "argument")
+					end
+				end
+
+				-- Local types
+				across feat.locals as loc loop
+					l_type := extract_base_type (loc.local_type)
+					if is_user_type (l_type) then
+						symbol_db.add_type_reference (a_class_id, l_type, "local")
+					end
+				end
+			end
+		end
+
+	extract_base_type (a_type: STRING): STRING
+			-- Extract base type from possibly generic/detachable type
+			-- "detachable ARRAYED_LIST [STRING]" -> "ARRAYED_LIST"
+			-- "like Current" -> ""
+		require
+			type_not_void: a_type /= Void
+		local
+			l_work: STRING
+			l_bracket: INTEGER
+		do
+			l_work := a_type.twin
+			l_work.left_adjust
+			l_work.right_adjust
+
+			-- Remove "detachable" or "attached" prefix
+			if l_work.starts_with ("detachable ") then
+				l_work := l_work.substring (12, l_work.count)
+			elseif l_work.starts_with ("attached ") then
+				l_work := l_work.substring (10, l_work.count)
+			end
+			l_work.left_adjust
+
+			-- Handle "like" anchored types
+			if l_work.starts_with ("like") then
+				Result := ""
+			else
+				-- Remove generic parameters
+				l_bracket := l_work.index_of ('[', 1)
+				if l_bracket > 0 then
+					Result := l_work.substring (1, l_bracket - 1)
+					Result.right_adjust
+				else
+					Result := l_work
+				end
+			end
+		ensure
+			result_exists: Result /= Void
+		end
+
+	is_user_type (a_type: STRING): BOOLEAN
+			-- Is this a type we should track? (not basic types or empty)
+		require
+			type_not_void: a_type /= Void
+		do
+			if a_type.is_empty then
+				Result := False
+			elseif a_type.same_string ("BOOLEAN") then
+				Result := False
+			elseif a_type.same_string ("INTEGER") or a_type.same_string ("INTEGER_32") then
+				Result := False
+			elseif a_type.same_string ("INTEGER_8") or a_type.same_string ("INTEGER_16") or a_type.same_string ("INTEGER_64") then
+				Result := False
+			elseif a_type.same_string ("NATURAL") or a_type.same_string ("NATURAL_32") then
+				Result := False
+			elseif a_type.same_string ("NATURAL_8") or a_type.same_string ("NATURAL_16") or a_type.same_string ("NATURAL_64") then
+				Result := False
+			elseif a_type.same_string ("REAL") or a_type.same_string ("REAL_32") or a_type.same_string ("REAL_64") then
+				Result := False
+			elseif a_type.same_string ("DOUBLE") then
+				Result := False
+			elseif a_type.same_string ("CHARACTER") or a_type.same_string ("CHARACTER_8") or a_type.same_string ("CHARACTER_32") then
+				Result := False
+			elseif a_type.same_string ("POINTER") then
+				Result := False
+			else
+				Result := True
+			end
+		end
+
+feature {NONE} -- EIFGENs Metadata
+
+	load_eifgens_metadata
+			-- Load compiled metadata from EIFGENs folder for accurate semantic info
+		do
+			log_info ("Looking for EIFGENs metadata in: " + workspace_root)
+			if eifgens_parser.load_from_project (workspace_root) then
+				eifgens_loaded := True
+				log_info ("EIFGENs metadata loaded: " + eifgens_parser.class_count.out + " classes")
+			else
+				log_info ("No EIFGENs metadata found (project not compiled yet?)")
+				eifgens_loaded := False
+			end
+		end
+
+	reload_eifgens_metadata
+			-- Reload EIFGENs metadata (after compile)
+		do
+			log_info ("Reloading EIFGENs metadata...")
+			create eifgens_parser.default_create
+			load_eifgens_metadata
+		end
+
+	get_inheritance_info (a_class_name: STRING): STRING
+			-- Get inheritance chain info for class (from EIFGENs metadata)
+		require
+			name_not_empty: not a_class_name.is_empty
+		local
+			l_chain: ARRAYED_LIST [STRING]
+		do
+			create Result.make_empty
+			if eifgens_loaded and then eifgens_parser.has_class (a_class_name) then
+				l_chain := eifgens_parser.ancestor_chain (a_class_name)
+				if l_chain.count > 1 then
+					Result := "Inherits from: "
+					across l_chain as anc loop
+						if not anc.same_string (a_class_name) then
+							if Result.count > 16 then
+								Result.append (", ")
+							end
+							Result.append (anc)
+						end
+					end
+				end
+			end
+		ensure
+			result_exists: Result /= Void
+		end
+
+	get_suppliers_info (a_class_name: STRING): STRING
+			-- Get supplier classes info (types this class uses)
+		require
+			name_not_empty: not a_class_name.is_empty
+		local
+			l_suppliers: ARRAYED_LIST [STRING]
+			l_first: BOOLEAN
+		do
+			create Result.make_empty
+			l_suppliers := symbol_db.suppliers_of (a_class_name)
+			if not l_suppliers.is_empty then
+				l_first := True
+				across l_suppliers as sup loop
+					if l_first then
+						l_first := False
+					else
+						Result.append (", ")
+					end
+					Result.append (sup)
+				end
+			end
+		ensure
+			result_exists: Result /= Void
+		end
+
+	get_clients_info (a_class_name: STRING): STRING
+			-- Get client classes info (classes that use this type)
+			-- Excludes self-references (class showing itself as client)
+		require
+			name_not_empty: not a_class_name.is_empty
+		local
+			l_clients: ARRAYED_LIST [STRING]
+			l_first: BOOLEAN
+		do
+			create Result.make_empty
+			l_clients := symbol_db.clients_of (a_class_name)
+			if not l_clients.is_empty then
+				l_first := True
+				across l_clients as cli loop
+					-- Skip self-references
+					if not cli.same_string (a_class_name) then
+						if l_first then
+							l_first := False
+						else
+							Result.append (", ")
+						end
+						Result.append (cli)
+					end
+				end
+			end
+		ensure
+			result_exists: Result /= Void
 		end
 
 feature {NONE} -- Definition Finding
@@ -753,11 +1154,57 @@ feature {NONE} -- Hover Info
 			l_feature_info: detachable TUPLE [file_path: STRING; line, column: INTEGER; signature, comment: STRING]
 			l_content: STRING
 			l_contents: SIMPLE_JSON_OBJECT
+			l_inheritance: STRING
+			l_lookup_name: STRING
+			l_display_name: STRING
+			l_alias_note: STRING
+			l_suppliers_info: STRING
+			l_clients_info: STRING
 		do
-			-- Try as class name
-			l_class_info := symbol_db.find_class (a_word)
+			-- Resolve type aliases (INTEGER -> INTEGER_32, STRING -> STRING_8, etc.)
+			l_lookup_name := resolve_type_alias (a_word.as_upper)
+			l_display_name := a_word.as_upper
+			if not l_lookup_name.same_string (l_display_name) then
+				l_alias_note := " (alias for " + l_lookup_name + ")"
+			else
+				l_alias_note := ""
+			end
+
+			-- Try as class name (workspace or EIFGENs)
+			l_class_info := symbol_db.find_class (l_lookup_name)
 			if attached l_class_info then
-				create l_content.make_from_string ("**class " + a_word.as_upper + "**")
+				create l_content.make_from_string ("**class " + l_display_name + "**" + l_alias_note + " *(workspace)*")
+				-- Add inheritance info from EIFGENs metadata
+				l_inheritance := get_inheritance_info (l_lookup_name)
+				if not l_inheritance.is_empty then
+					l_content.append ("%N%N*" + l_inheritance + "*")
+				end
+				-- Add suppliers and clients
+				l_suppliers_info := get_suppliers_info (l_display_name)
+				if not l_suppliers_info.is_empty then
+					l_content.append ("%N%N**Suppliers:** " + l_suppliers_info)
+				end
+				l_clients_info := get_clients_info (l_display_name)
+				if not l_clients_info.is_empty then
+					l_content.append ("%N%N**Clients:** " + l_clients_info)
+				end
+				create Result.make
+				create l_contents.make
+				l_contents.put_string ("markdown", "kind").do_nothing
+				l_contents.put_string (l_content, "value").do_nothing
+				Result.put_object (l_contents, "contents").do_nothing
+			elseif eifgens_loaded and then eifgens_parser.has_class (l_lookup_name) then
+				-- Class from compiled metadata (stdlib class)
+				create l_content.make_from_string ("**class " + l_display_name + "**" + l_alias_note + " *(compiled)*")
+				l_inheritance := get_inheritance_info (l_lookup_name)
+				if not l_inheritance.is_empty then
+					l_content.append ("%N%N*" + l_inheritance + "*")
+				end
+				-- Clients only for stdlib classes (no supplier data for non-workspace classes)
+				l_clients_info := get_clients_info (l_display_name)
+				if not l_clients_info.is_empty then
+					l_content.append ("%N%N**Clients:** " + l_clients_info)
+				end
 				create Result.make
 				create l_contents.make
 				l_contents.put_string ("markdown", "kind").do_nothing
@@ -783,6 +1230,33 @@ feature {NONE} -- Hover Info
 					end
 				end
 			end
+		end
+
+	resolve_type_alias (a_name: STRING): STRING
+			-- Resolve Eiffel type alias to actual class name
+			-- INTEGER -> INTEGER_32, STRING -> STRING_8, etc.
+		require
+			name_not_empty: not a_name.is_empty
+		do
+			if a_name.same_string ("INTEGER") then
+				Result := "INTEGER_32"
+			elseif a_name.same_string ("NATURAL") then
+				Result := "NATURAL_32"
+			elseif a_name.same_string ("REAL") then
+				Result := "REAL_32"
+			elseif a_name.same_string ("DOUBLE") then
+				Result := "REAL_64"
+			elseif a_name.same_string ("CHARACTER") then
+				Result := "CHARACTER_8"
+			elseif a_name.same_string ("STRING") then
+				Result := "STRING_8"
+			elseif a_name.same_string ("WIDE_CHARACTER") then
+				Result := "CHARACTER_32"
+			else
+				Result := a_name
+			end
+		ensure
+			result_not_empty: not Result.is_empty
 		end
 
 feature {NONE} -- Completion
@@ -839,6 +1313,295 @@ feature {NONE} -- Completion
 			Result.add_string ("_").do_nothing  -- For snake_case identifiers
 		ensure
 			result_not_void: Result /= Void
+		end
+
+feature {NONE} -- Signature Help
+
+	create_signature_help_options: SIMPLE_JSON_OBJECT
+			-- Create signature help provider options
+		local
+			l_triggers: SIMPLE_JSON_ARRAY
+		do
+			create Result.make
+			create l_triggers.make
+			l_triggers.add_string ("(").do_nothing  -- Trigger on open paren
+			l_triggers.add_string (",").do_nothing  -- Trigger on comma (next param)
+			Result.put_array (l_triggers, "triggerCharacters").do_nothing
+		ensure
+			result_not_void: Result /= Void
+		end
+
+	handle_signature_help (a_msg: LSP_MESSAGE)
+			-- Handle textDocument/signatureHelp - show parameter hints
+		require
+			msg_not_void: a_msg /= Void
+			is_request: a_msg.is_request
+		local
+			l_uri, l_path: STRING
+			l_line, l_col: INTEGER
+			l_result: detachable SIMPLE_JSON_OBJECT
+			l_feature_name: STRING
+		do
+			l_uri := a_msg.text_document_uri
+			l_path := uri_to_path (l_uri)
+			l_line := a_msg.position_line
+			l_col := a_msg.position_character
+
+			log_debug ("Signature help at: " + l_path + ":" + l_line.out + ":" + l_col.out)
+
+			-- Find the feature being called
+			l_feature_name := feature_at_position (l_path, l_line, l_col)
+			log_debug ("Feature name for signature: '" + l_feature_name + "'")
+
+			if not l_feature_name.is_empty then
+				l_result := get_signature_help (l_feature_name, l_path, l_line, l_col)
+			end
+
+			if attached l_result then
+				send_response (a_msg.id, l_result)
+			else
+				send_null_response (a_msg.id)
+			end
+		end
+
+	get_signature_help (a_feature_name: STRING; a_path: STRING; a_line, a_col: INTEGER): detachable SIMPLE_JSON_OBJECT
+			-- Get signature help for feature
+		require
+			name_not_void: a_feature_name /= Void
+			name_not_empty: not a_feature_name.is_empty
+		local
+			l_feature_info: detachable TUPLE [file_path: STRING; line, column: INTEGER; signature, comment: STRING]
+			l_signatures: SIMPLE_JSON_ARRAY
+			l_sig_obj: SIMPLE_JSON_OBJECT
+			l_parameters: SIMPLE_JSON_ARRAY
+			l_signature: STRING
+			l_active_param: INTEGER
+		do
+			-- Find the feature in the database
+			across symbol_db.all_class_names as class_name until Result /= Void loop
+				l_feature_info := symbol_db.find_feature (class_name, a_feature_name)
+				if attached l_feature_info and then attached l_feature_info.signature as sig and then not sig.is_empty then
+					-- Build signature help response
+					create Result.make
+					create l_signatures.make
+					create l_sig_obj.make
+
+					-- The signature label
+					l_signature := a_feature_name
+					if sig.has ('(') then
+						l_signature := l_signature + " " + sig
+					else
+						l_signature := l_signature + sig
+					end
+					l_sig_obj.put_string (l_signature, "label").do_nothing
+
+					-- Documentation
+					if attached l_feature_info.comment as cmt and then not cmt.is_empty then
+						l_sig_obj.put_string (cmt, "documentation").do_nothing
+					end
+
+					-- Parse parameters from signature
+					l_parameters := extract_parameters (sig)
+					if l_parameters.count > 0 then
+						l_sig_obj.put_array (l_parameters, "parameters").do_nothing
+					end
+
+					l_signatures.add_object (l_sig_obj).do_nothing
+					Result.put_array (l_signatures, "signatures").do_nothing
+					Result.put_integer (0, "activeSignature").do_nothing
+
+					-- Determine active parameter based on commas before cursor
+					l_active_param := count_commas_before_cursor (a_path, a_line, a_col)
+					Result.put_integer (l_active_param, "activeParameter").do_nothing
+
+					log_info ("Signature help: " + l_signature + " (param " + l_active_param.out + ")")
+				end
+			end
+		end
+
+	extract_parameters (a_signature: STRING): SIMPLE_JSON_ARRAY
+			-- Extract parameter info from signature
+			-- Input: "(a_name: STRING; a_value: INTEGER): BOOLEAN" or similar
+		require
+			sig_not_void: a_signature /= Void
+		local
+			l_params_str: STRING
+			l_params: LIST [STRING]
+			l_param_obj: SIMPLE_JSON_OBJECT
+			l_start, l_end: INTEGER
+		do
+			create Result.make
+
+			-- Find content between parentheses
+			l_start := a_signature.index_of ('(', 1)
+			l_end := a_signature.index_of (')', 1)
+
+			if l_start > 0 and l_end > l_start then
+				l_params_str := a_signature.substring (l_start + 1, l_end - 1)
+				l_params_str.left_adjust
+				l_params_str.right_adjust
+
+				if not l_params_str.is_empty then
+					-- Split by semicolon
+					l_params := l_params_str.split (';')
+					across l_params as param loop
+						param.left_adjust
+						param.right_adjust
+						if not param.is_empty then
+							create l_param_obj.make
+							l_param_obj.put_string (param.to_string_8, "label").do_nothing
+							Result.add_object (l_param_obj).do_nothing
+						end
+					end
+				end
+			end
+		ensure
+			result_not_void: Result /= Void
+		end
+
+	feature_at_position (a_path: STRING; a_line, a_col: INTEGER): STRING
+			-- Find feature name being called at position (look backward for identifier before '(')
+		require
+			path_not_void: a_path /= Void
+		local
+			l_file: SIMPLE_FILE
+			l_lines: LIST [STRING]
+			l_line_text: STRING
+			l_pos: INTEGER
+			l_start, l_end: INTEGER
+			l_paren_depth: INTEGER
+			l_found_paren: BOOLEAN
+			l_content: STRING
+		do
+			create Result.make_empty
+
+			-- Try to get content from cache first, fall back to file
+			if document_cache.has (a_path) then
+				l_content := document_cache.item (a_path)
+				log_debug ("Using cached content for: " + a_path)
+			else
+				create l_file.make (a_path)
+				if l_file.exists then
+					l_content := l_file.read_text.to_string_8
+					log_debug ("Read from disk for: " + a_path)
+				end
+			end
+
+			if attached l_content then
+				l_lines := l_content.split ('%N')
+				if a_line >= 0 and a_line < l_lines.count then
+					l_line_text := l_lines.i_th (a_line + 1)
+					-- Remove carriage return if present (Windows line endings)
+					if l_line_text.count > 0 and then l_line_text.item (l_line_text.count) = '%R' then
+						l_line_text := l_line_text.substring (1, l_line_text.count - 1)
+					end
+					log_debug ("feature_at_position: line=" + l_line_text)
+
+					-- Start from cursor position and scan backward to find the opening '('
+					l_pos := (a_col).min (l_line_text.count)
+					if l_pos < 1 then
+						l_pos := l_line_text.count
+					end
+
+					-- Scan backward to find the opening paren, respecting nesting
+					l_paren_depth := 0
+					l_found_paren := False
+					from
+					until
+						l_pos < 1 or l_found_paren
+					loop
+						inspect l_line_text.item (l_pos)
+						when ')' then
+							l_paren_depth := l_paren_depth + 1
+						when '(' then
+							if l_paren_depth = 0 then
+								l_found_paren := True
+							else
+								l_paren_depth := l_paren_depth - 1
+							end
+						else
+							-- Keep scanning
+						end
+						if not l_found_paren then
+							l_pos := l_pos - 1
+						end
+					end
+
+					if l_found_paren then
+						log_debug ("Found opening paren at position: " + l_pos.out)
+						-- Move before the '('
+						l_pos := l_pos - 1
+						-- Skip whitespace before '('
+						from
+						until
+							l_pos < 1 or else l_line_text.item (l_pos) /= ' '
+						loop
+							l_pos := l_pos - 1
+						end
+						-- Now find the identifier (scan backward through word chars)
+						l_end := l_pos
+						from
+						until
+							l_pos < 1 or else not is_word_char (l_line_text.item (l_pos))
+						loop
+							l_pos := l_pos - 1
+						end
+						l_start := l_pos + 1
+
+						if l_end >= l_start and l_start >= 1 then
+							Result := l_line_text.substring (l_start, l_end)
+							log_debug ("Found feature name: '" + Result + "'")
+						end
+					else
+						log_debug ("No opening paren found on this line")
+					end
+				end
+			end
+		ensure
+			result_not_void: Result /= Void
+		end
+
+	count_commas_before_cursor (a_path: STRING; a_line, a_col: INTEGER): INTEGER
+			-- Count commas between opening paren and cursor position
+		require
+			path_not_void: a_path /= Void
+		local
+			l_file: SIMPLE_FILE
+			l_lines: LIST [STRING_32]
+			l_line_text: STRING
+			l_pos, l_paren_depth: INTEGER
+		do
+			create l_file.make (a_path)
+			if l_file.exists then
+				l_lines := l_file.read_lines
+				if a_line >= 0 and a_line < l_lines.count then
+					l_line_text := l_lines.i_th (a_line + 1).to_string_8
+
+					-- Find the opening paren and count commas from there
+					l_paren_depth := 0
+					from
+						l_pos := (a_col).min (l_line_text.count)
+					until
+						l_pos < 1 or else (l_line_text.item (l_pos) = '(' and l_paren_depth = 0)
+					loop
+						inspect l_line_text.item (l_pos)
+						when ')' then
+							l_paren_depth := l_paren_depth + 1
+						when '(' then
+							l_paren_depth := l_paren_depth - 1
+						when ',' then
+							if l_paren_depth = 0 then
+								Result := Result + 1
+							end
+						else
+							-- Other characters, keep scanning
+						end
+						l_pos := l_pos - 1
+					end
+				end
+			end
+		ensure
+			non_negative: Result >= 0
 		end
 
 feature {NONE} -- Document Symbols
@@ -1057,6 +1820,330 @@ feature {NONE} -- Find References
 			result_not_void: Result /= Void
 		end
 
+feature {NONE} -- Rename Symbol
+
+	handle_rename (a_msg: LSP_MESSAGE)
+			-- Handle textDocument/rename - rename symbol across workspace
+		require
+			msg_not_void: a_msg /= Void
+			is_request: a_msg.is_request
+		local
+			l_uri, l_path: STRING
+			l_line, l_col: INTEGER
+			l_word: STRING
+			l_new_name: STRING
+			l_result: detachable SIMPLE_JSON_OBJECT
+		do
+			log_info ("handle_rename: starting")
+			l_uri := a_msg.text_document_uri
+			log_info ("handle_rename: uri=" + l_uri)
+			l_path := uri_to_path (l_uri)
+			log_info ("handle_rename: path=" + l_path)
+			l_line := a_msg.position_line
+			l_col := a_msg.position_character
+			log_info ("handle_rename: line=" + l_line.out + " col=" + l_col.out)
+
+			l_word := word_at_position (l_path, l_line, l_col)
+			log_info ("handle_rename: word='" + l_word + "'")
+			l_new_name := ""
+			if attached a_msg.params as l_params then
+				if attached l_params.string_item ("newName") as nn then
+					l_new_name := nn.to_string_8
+				end
+			end
+
+			log_info ("Rename requested: '" + l_word + "' -> '" + l_new_name + "'")
+
+			if l_word /= Void and then not l_word.is_empty and then l_new_name /= Void and then not l_new_name.is_empty then
+				log_info ("About to call rename_handler.compute_workspace_edit")
+				log_info ("l_word='" + l_word + "' l_new_name='" + l_new_name + "'")
+				if rename_handler = Void then
+					log_info ("ERROR: rename_handler is Void!")
+				elseif rename_handler.symbol_db = Void then
+					log_info ("ERROR: rename_handler.symbol_db is Void!")
+				elseif rename_handler.logger = Void then
+					log_info ("ERROR: rename_handler.logger is Void!")
+				else
+					log_info ("rename_handler is fully attached, calling compute_workspace_edit")
+					l_result := rename_handler.compute_workspace_edit (l_word, l_new_name)
+					log_info ("compute_workspace_edit returned")
+				end
+			else
+				log_info ("ERROR: l_word or l_new_name is void or empty")
+			end
+
+			if attached l_result then
+				send_response (a_msg.id, l_result)
+			else
+				send_null_response (a_msg.id)
+			end
+		end
+
+	handle_prepare_rename (a_msg: LSP_MESSAGE)
+			-- Handle textDocument/prepareRename - validate rename is possible
+		require
+			msg_not_void: a_msg /= Void
+			is_request: a_msg.is_request
+		local
+			l_uri, l_path: STRING
+			l_line, l_col: INTEGER
+			l_word: STRING
+			l_result: SIMPLE_JSON_OBJECT
+			l_range: SIMPLE_JSON_OBJECT
+			l_start_pos, l_end_pos: SIMPLE_JSON_OBJECT
+		do
+			l_uri := a_msg.text_document_uri
+			l_path := uri_to_path (l_uri)
+			l_line := a_msg.position_line
+			l_col := a_msg.position_character
+
+			l_word := word_at_position (l_path, l_line, l_col)
+			log_debug ("Prepare rename for: '" + l_word + "'")
+
+			if not l_word.is_empty then
+				-- Return the range and placeholder text
+				create l_result.make
+
+				create l_start_pos.make
+				l_start_pos.put_integer (l_line, "line").do_nothing
+				l_start_pos.put_integer (l_col - word_start_offset (l_path, l_line, l_col), "character").do_nothing
+
+				create l_end_pos.make
+				l_end_pos.put_integer (l_line, "line").do_nothing
+				l_end_pos.put_integer (l_col - word_start_offset (l_path, l_line, l_col) + l_word.count, "character").do_nothing
+
+				create l_range.make
+				l_range.put_object (l_start_pos, "start").do_nothing
+				l_range.put_object (l_end_pos, "end").do_nothing
+
+				l_result.put_object (l_range, "range").do_nothing
+				l_result.put_string (l_word, "placeholder").do_nothing
+
+				send_response (a_msg.id, l_result)
+			else
+				send_null_response (a_msg.id)
+			end
+		end
+
+	compute_workspace_edit (a_old_name, a_new_name: STRING): detachable SIMPLE_JSON_OBJECT
+			-- Compute workspace edit for renaming a_old_name to a_new_name
+			-- For classes, also renames the file (CALCULATOR -> calc.e)
+		require
+			old_name_not_empty: not a_old_name.is_empty
+			new_name_not_empty: not a_new_name.is_empty
+		local
+			l_document_changes: SIMPLE_JSON_ARRAY
+			l_file_edits: HASH_TABLE [SIMPLE_JSON_ARRAY, STRING]
+			l_occurrences: ARRAYED_LIST [TUPLE [file_path: STRING; line, col, length: INTEGER]]
+			l_edit: SIMPLE_JSON_OBJECT
+			l_range: SIMPLE_JSON_OBJECT
+			l_start_pos, l_end_pos: SIMPLE_JSON_OBJECT
+			l_edits: SIMPLE_JSON_ARRAY
+			l_uri: STRING
+			l_text_doc_edit: SIMPLE_JSON_OBJECT
+			l_text_doc: SIMPLE_JSON_OBJECT
+			l_class_info: detachable TUPLE [id: INTEGER; file_path: STRING; line, column: INTEGER]
+			l_rename_file: SIMPLE_JSON_OBJECT
+			l_old_uri, l_new_uri: STRING
+			l_new_file_path: STRING
+			l_dir_end: INTEGER
+		do
+			-- Find all occurrences of the symbol
+			l_occurrences := find_all_occurrences (a_old_name)
+			log_info ("Found " + l_occurrences.count.out + " occurrences to rename")
+
+			if l_occurrences.count > 0 then
+				create l_file_edits.make (10)
+				create l_document_changes.make
+
+				-- Group edits by file
+				across l_occurrences as occ loop
+					l_uri := path_to_uri (occ.file_path)
+					if not l_file_edits.has (l_uri) then
+						create l_edits.make
+						l_file_edits.force (l_edits, l_uri)
+					end
+					if attached l_file_edits.item (l_uri) as l_arr then
+						-- Create text edit
+						create l_start_pos.make
+						l_start_pos.put_integer (occ.line - 1, "line").do_nothing
+						l_start_pos.put_integer (occ.col - 1, "character").do_nothing
+
+						create l_end_pos.make
+						l_end_pos.put_integer (occ.line - 1, "line").do_nothing
+						l_end_pos.put_integer (occ.col - 1 + occ.length, "character").do_nothing
+
+						create l_range.make
+						l_range.put_object (l_start_pos, "start").do_nothing
+						l_range.put_object (l_end_pos, "end").do_nothing
+
+						create l_edit.make
+						l_edit.put_object (l_range, "range").do_nothing
+						l_edit.put_string (a_new_name, "newText").do_nothing
+
+						l_arr.add_object (l_edit).do_nothing
+					end
+				end
+
+				-- Build TextDocumentEdit objects for each file
+				across l_file_edits as fe loop
+					create l_text_doc_edit.make
+					create l_text_doc.make
+					l_text_doc.put_string (l_file_edits.key_for_iteration, "uri").do_nothing
+					l_text_doc_edit.put_object (l_text_doc, "textDocument").do_nothing
+					l_text_doc_edit.put_array (fe, "edits").do_nothing
+					l_document_changes.add_object (l_text_doc_edit).do_nothing
+				end
+
+				-- Check if we're renaming a class - if so, also rename the file
+				l_class_info := symbol_db.find_class (a_old_name)
+				if attached l_class_info then
+					l_old_uri := path_to_uri (l_class_info.file_path)
+					-- Compute new file path: replace filename with new_name.e
+					l_dir_end := l_class_info.file_path.last_index_of ('/', l_class_info.file_path.count)
+					if l_dir_end = 0 then
+						l_dir_end := l_class_info.file_path.last_index_of ('\', l_class_info.file_path.count)
+					end
+					if l_dir_end > 0 then
+						l_new_file_path := l_class_info.file_path.substring (1, l_dir_end) + a_new_name.as_lower + ".e"
+					else
+						l_new_file_path := a_new_name.as_lower + ".e"
+					end
+					l_new_uri := path_to_uri (l_new_file_path)
+
+					-- Add RenameFile operation
+					create l_rename_file.make
+					l_rename_file.put_string ("rename", "kind").do_nothing
+					l_rename_file.put_string (l_old_uri, "oldUri").do_nothing
+					l_rename_file.put_string (l_new_uri, "newUri").do_nothing
+					l_document_changes.add_object (l_rename_file).do_nothing
+					log_info ("Adding file rename: " + l_old_uri + " -> " + l_new_uri)
+				end
+
+				-- Build workspace edit response using documentChanges
+				create Result.make
+				Result.put_array (l_document_changes, "documentChanges").do_nothing
+			end
+		end
+
+	find_all_occurrences (a_name: STRING): ARRAYED_LIST [TUPLE [file_path: STRING; line, col, length: INTEGER]]
+			-- Find all occurrences of a_name in workspace files
+		require
+			name_not_empty: not a_name.is_empty
+		local
+			l_file: SIMPLE_FILE
+			l_content: STRING
+			l_lines: LIST [STRING]
+			l_line_num: INTEGER
+			l_col: INTEGER
+			l_search_upper: STRING
+			l_line_str: STRING
+			l_file_paths: ARRAYED_LIST [STRING]
+			i, j: INTEGER
+			l_path: STRING
+		do
+			create Result.make (20)
+			l_search_upper := a_name.as_upper
+			log_info ("find_all_occurrences: searching for '" + a_name + "'")
+
+			-- Search all indexed files using from-loop
+			l_file_paths := symbol_db.all_file_paths
+			log_info ("find_all_occurrences: got " + l_file_paths.count.out + " file paths")
+			from i := 1 until i > l_file_paths.count loop
+				l_path := l_file_paths.i_th (i)
+				log_debug ("find_all_occurrences: checking file " + l_path)
+				create l_file.make (l_path)
+				if l_file.exists then
+					l_content := l_file.read_text.to_string_8
+					l_lines := l_content.split ('%N')
+					-- Use from-loop for lines
+					from j := 1 until j > l_lines.count loop
+						l_line_str := l_lines.i_th (j)
+						l_line_num := j
+						-- Search for all occurrences in this line
+						from
+							l_col := l_line_str.as_upper.substring_index (l_search_upper, 1)
+						until
+							l_col = 0
+						loop
+							-- Verify it's a whole word (not part of another identifier)
+							if is_whole_word (l_line_str, l_col, a_name.count) then
+								Result.extend ([l_path.twin, l_line_num, l_col, a_name.count])
+							end
+							-- Continue searching for more occurrences
+							if l_col + l_search_upper.count <= l_line_str.count then
+								l_col := l_line_str.as_upper.substring_index (l_search_upper, l_col + 1)
+							else
+								l_col := 0
+							end
+						end
+						j := j + 1
+					end
+				end
+				i := i + 1
+			end
+			log_info ("find_all_occurrences: found " + Result.count.out + " occurrences")
+		ensure
+			result_not_void: Result /= Void
+		end
+
+	is_whole_word (a_line: STRING; a_pos, a_length: INTEGER): BOOLEAN
+			-- Is the substring at a_pos a whole word (not part of larger identifier)?
+		require
+			line_not_void: a_line /= Void
+			pos_valid: a_pos >= 1 and a_pos <= a_line.count
+			length_valid: a_length >= 1
+		local
+			l_before, l_after: CHARACTER
+		do
+			Result := True
+			-- Check character before
+			if a_pos > 1 then
+				l_before := a_line.item (a_pos - 1)
+				if l_before.is_alpha or l_before.is_digit or l_before = '_' then
+					Result := False
+				end
+			end
+			-- Check character after
+			if Result and then a_pos + a_length <= a_line.count then
+				l_after := a_line.item (a_pos + a_length)
+				if l_after.is_alpha or l_after.is_digit or l_after = '_' then
+					Result := False
+				end
+			end
+		end
+
+	word_start_offset (a_path: STRING; a_line, a_col: INTEGER): INTEGER
+			-- Get offset from a_col to start of word
+		require
+			path_not_void: a_path /= Void
+		local
+			l_file: SIMPLE_FILE
+			l_lines: LIST [STRING_32]
+			l_line_text: STRING
+			l_pos: INTEGER
+		do
+			create l_file.make (a_path)
+			if l_file.exists then
+				l_lines := l_file.read_lines
+				if a_line >= 0 and a_line < l_lines.count then
+					l_line_text := l_lines.i_th (a_line + 1).to_string_8
+					l_pos := a_col + 1
+					if l_pos >= 1 and l_pos <= l_line_text.count then
+						from
+						until
+							l_pos <= 1 or else not is_word_char (l_line_text.item (l_pos - 1))
+						loop
+							l_pos := l_pos - 1
+							Result := Result + 1
+						end
+					end
+				end
+			end
+		ensure
+			non_negative: Result >= 0
+		end
+
 feature {NONE} -- Path Helpers
 
 	uri_to_path (a_uri: STRING): STRING
@@ -1187,25 +2274,45 @@ feature {NONE} -- Path Helpers
 					log_debug ("Line " + (a_line + 1).out + " has " + l_line_text.count.out + " chars: '" + l_line_text.head (80) + "'")
 
 					-- Find word boundaries
+					-- LSP column is 0-based, Eiffel strings are 1-based
 					l_start := a_col + 1
 					l_end := a_col + 1
 
+					-- Clamp to line length (cursor can be at end of line)
+					if l_start > l_line_text.count then
+						l_start := l_line_text.count
+						l_end := l_line_text.count
+					end
+
 					-- Make sure we're within bounds
 					if l_start >= 1 and l_start <= l_line_text.count then
-						-- Scan backward
-						from
-						until
-							l_start <= 1 or else not is_word_char (l_line_text.item (l_start - 1))
-						loop
+						-- If we're on a word char, scan in both directions
+						-- If not, check if previous char is a word char (cursor at end of word)
+						if is_word_char (l_line_text.item (l_start)) then
+							-- Scan backward
+							from
+							until
+								l_start <= 1 or else not is_word_char (l_line_text.item (l_start - 1))
+							loop
+								l_start := l_start - 1
+							end
+							-- Scan forward
+							from
+							until
+								l_end > l_line_text.count or else not is_word_char (l_line_text.item (l_end))
+							loop
+								l_end := l_end + 1
+							end
+						elseif l_start > 1 and then is_word_char (l_line_text.item (l_start - 1)) then
+							-- Cursor is just after a word - scan backward from previous char
 							l_start := l_start - 1
-						end
-
-						-- Scan forward
-						from
-						until
-							l_end > l_line_text.count or else not is_word_char (l_line_text.item (l_end))
-						loop
-							l_end := l_end + 1
+							l_end := l_start + 1
+							from
+							until
+								l_start <= 1 or else not is_word_char (l_line_text.item (l_start - 1))
+							loop
+								l_start := l_start - 1
+							end
 						end
 
 						if l_end > l_start then
@@ -1297,6 +2404,15 @@ feature {NONE} -- Implementation
 	logger: LSP_LOGGER
 			-- Logger for debugging
 
+	document_cache: HASH_TABLE [STRING, STRING]
+			-- Cache of document contents by path (for unsaved changes)
+
+	eifgens_parser: EIFGENS_METADATA_PARSER
+			-- Parser for compiled EIFGENs metadata (inheritance, types)
+
+	eifgens_loaded: BOOLEAN
+			-- Has EIFGENs metadata been loaded?
+
 invariant
 	workspace_not_void: workspace_root /= Void
 	workspace_not_empty: not workspace_root.is_empty
@@ -1304,5 +2420,7 @@ invariant
 	symbol_db_exists: symbol_db /= Void
 	parser_exists: parser /= Void
 	logger_exists: logger /= Void
+	cache_exists: document_cache /= Void
+	eifgens_parser_exists: eifgens_parser /= Void
 
 end

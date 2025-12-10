@@ -23,6 +23,11 @@
 	<target name="simple_lsp_exe" extends="simple_lsp">
 		<root class="LSP_APPLICATION" feature="make"/>
 		<setting name="console_application" value="true"/>
+		<setting name="check_for_void_target" value="true"/>
+		<setting name="exception_trace" value="true"/>
+		<option>
+			<assertions precondition="true" postcondition="true" check="true" invariant="true" loop="true" supplier_precondition="true"/>
+		</option>
 		<capability>
 			<concurrency support="scoop" use="scoop"/>
 			<void_safety support="all" use="all"/>

@@ -22,17 +22,19 @@ Part of the [Simple Eiffel](https://github.com/simple-eiffel) ecosystem.
 simple_lsp brings modern IDE features to Eiffel development in VS Code:
 
 - **Go to Definition** (Ctrl+Click) - Jump to class or feature definitions
-- **Hover Documentation** - See feature signatures and comments on hover
+- **Hover Documentation** - See feature signatures, comments, and **inheritance chains** on hover
 - **Code Completion** (Ctrl+Space) - Autocomplete classes and features as you type
 - **Document Symbols** (Ctrl+Shift+O) - Outline view of current file
 - **Workspace Symbols** (Ctrl+T) - Search all symbols across workspace
 - **Find All References** (Shift+F12) - Find all definitions of a symbol
+- **Build Commands** - Melt (Ctrl+Shift+B), Freeze (Ctrl+Shift+F), Finalize (Ctrl+Shift+R)
+- **EIFGENs Integration** - Rich semantic info from compiled metadata (inheritance, all 769+ stdlib classes)
 
 ## Quick Start
 
 ### Windows Installer (Recommended)
 
-1. Download `simple_lsp_setup_0.1.0.exe` from [Releases](https://github.com/simple-eiffel/simple_lsp/releases)
+1. Download `simple_lsp_setup_0.3.1.exe` from [Releases](https://github.com/simple-eiffel/simple_lsp/releases)
 2. Run the installer
 3. Open VS Code with any folder containing `.e` files
 4. Start coding!
@@ -49,7 +51,7 @@ Download the release archive and extract:
 ```
 simple_lsp/
 ├── simple_lsp.exe          # LSP server
-├── eiffel-lsp-0.1.0.vsix   # VS Code extension
+├── eiffel-lsp-0.3.1.vsix   # VS Code extension
 ├── install.bat             # Optional install script
 └── README.md
 ```
@@ -69,7 +71,7 @@ install.bat
 3. Install VS Code extension:
    - Open VS Code
    - Press `Ctrl+Shift+P` > "Extensions: Install from VSIX..."
-   - Select `eiffel-lsp-0.1.0.vsix`
+   - Select `eiffel-lsp-0.3.1.vsix`
 
 ## Distribution Files
 
@@ -159,7 +161,7 @@ npx vsce package
 ### Build Outputs
 
 - `EIFGENs/simple_lsp_exe/F_code/simple_lsp.exe` - Optimized with contracts (13MB)
-- `vscode-extension/eiffel-lsp-0.1.0.vsix` - VS Code extension
+- `vscode-extension/eiffel-lsp-0.3.1.vsix` - VS Code extension
 
 ## Project Structure
 
@@ -246,11 +248,12 @@ simple_lsp is under active development. Here's what's planned:
 
 | Feature | Status | Description |
 |---------|--------|-------------|
+| **Client/Supplier Display** | **Next** | Show clients and suppliers in hover (who uses me, who I use) |
+| **Diagnostics** | Planned | Real-time syntax error highlighting from ec.exe output |
 | **Rename Symbol** | Planned | Safely rename features/classes across workspace |
 | **Signature Help** | Planned | Show parameter hints while typing |
 | **Folding Ranges** | Planned | Collapse feature clauses, invariants, notes |
 | **Formatting** | Planned | Auto-format Eiffel code on save |
-| **Diagnostics** | Planned | Real-time syntax error highlighting |
 | **Semantic Tokens** | Planned | Rich syntax highlighting (contracts, agents, etc.) |
 | **Call Hierarchy** | Planned | View incoming/outgoing calls for any feature |
 | **Type Hierarchy** | Planned | Visualize inheritance relationships |
@@ -261,7 +264,7 @@ simple_lsp is under active development. Here's what's planned:
 |---------|-------------|
 | **ECF Parsing** | Understand project configuration, library paths, targets |
 | **Cross-Project Navigation** | Jump to definitions in simple_* libraries |
-| **Inheritance Chain Display** | Show full inheritance path with redefinitions |
+| ~~**Inheritance Chain Display**~~ | ✅ **DONE in v0.3.0** - Show full inheritance path from EIFGENs |
 | **Contract Visualization** | Display require/ensure/invariant in hover with inheritance |
 | **Agent Signature Expansion** | Expand agent types to show full signatures |
 | **SCOOP Awareness** | Highlight separate calls, detect potential issues |
@@ -291,7 +294,7 @@ Leveraging other simple_* libraries for powerful features:
 | **Project Knowledge Base** | simple_oracle | Learn your codebase patterns, remember across sessions |
 | **Documentation Generation** | simple_markdown | Generate markdown docs from code comments |
 | **Test Runner Integration** | simple_testing | Run tests from VS Code, show coverage |
-| **Build System** | simple_process | Compile from VS Code, show errors inline |
+| ~~**Build System**~~ | simple_process | ✅ **DONE in v0.3.0** - Melt/Freeze/Finalize from VS Code |
 
 ### Visionary Features (Research)
 

@@ -6,11 +6,13 @@
  * - Hover documentation
  * - Code completion
  * - Diagnostics
+ * - Compile commands (Melt, Freeze, Finalize)
  */
 
 import * as path from 'path';
 import * as fs from 'fs';
-import { workspace, ExtensionContext, window, OutputChannel } from 'vscode';
+import * as cp from 'child_process';
+import { workspace, ExtensionContext, window, OutputChannel, commands, tasks, Task, TaskDefinition, ShellExecution, TaskScope, TaskRevealKind, TaskPanelKind } from 'vscode';
 import {
     LanguageClient,
     LanguageClientOptions,
@@ -20,10 +22,22 @@ import {
 
 let client: LanguageClient | undefined;
 let outputChannel: OutputChannel;
+let compileChannel: OutputChannel;
 
 export function activate(context: ExtensionContext) {
     outputChannel = window.createOutputChannel('Eiffel LSP');
+    compileChannel = window.createOutputChannel('Eiffel Compile');
     outputChannel.appendLine('Eiffel LSP extension activating...');
+
+    // Register compile commands
+    context.subscriptions.push(
+        commands.registerCommand('eiffel.melt', () => runCompile('melt')),
+        commands.registerCommand('eiffel.freeze', () => runCompile('freeze')),
+        commands.registerCommand('eiffel.finalize', () => runCompile('finalize')),
+        commands.registerCommand('eiffel.compileTests', () => runCompile('compile-tests')),
+        commands.registerCommand('eiffel.runTests', () => runCompile('run-tests')),
+        commands.registerCommand('eiffel.clean', () => cleanEifgens())
+    );
 
     const serverPath = findServerPath(context);
 
@@ -72,8 +86,12 @@ export function activate(context: ExtensionContext) {
 
     // Start the client (also starts the server)
     client.start().then(() => {
-        outputChannel.appendLine('Eiffel LSP client started successfully');
-        window.showInformationMessage('Eiffel LSP connected');
+        // Get server info from initialize result
+        const serverInfo = (client as any)._initializeResult?.serverInfo;
+        const serverVersion = serverInfo?.version || 'unknown';
+        const serverName = serverInfo?.name || 'simple_lsp';
+        outputChannel.appendLine(`${serverName} v${serverVersion} connected`);
+        window.showInformationMessage(`Eiffel LSP v${serverVersion} connected`);
     }).catch((error) => {
         outputChannel.appendLine(`ERROR starting LSP client: ${error}`);
         window.showErrorMessage(`Failed to start Eiffel LSP: ${error}`);
@@ -93,6 +111,277 @@ export function deactivate(): Thenable<void> | undefined {
         return undefined;
     }
     return client.stop();
+}
+
+/**
+ * Run Eiffel compile command with streaming output
+ */
+async function runCompile(compileType: 'melt' | 'freeze' | 'finalize' | 'compile-tests' | 'run-tests') {
+    const workspaceFolders = workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+        window.showErrorMessage('No workspace folder open');
+        return;
+    }
+
+    const wsRoot = workspaceFolders[0].uri.fsPath;
+    const ecfFile = await findEcfFile(wsRoot);
+
+    if (!ecfFile) {
+        window.showErrorMessage('No .ecf file found in workspace');
+        return;
+    }
+
+    const compilerPath = findCompilerPath();
+    if (!compilerPath) {
+        window.showErrorMessage('EiffelStudio compiler (ec.exe) not found. Set eiffel.compilerPath or ISE_EIFFEL environment variable.');
+        return;
+    }
+
+    // Determine the target based on compile type
+    let target = '';
+    const ecfBaseName = path.basename(ecfFile, '.ecf');
+
+    if (compileType === 'compile-tests' || compileType === 'run-tests') {
+        // Look for a _tests target
+        target = ecfBaseName + '_tests';
+    }
+
+    // Build the command arguments
+    const args: string[] = ['-batch', '-config', ecfFile];
+
+    if (target) {
+        args.push('-target', target);
+    }
+
+    // Add compile type flag
+    switch (compileType) {
+        case 'melt':
+            // Default - no extra flag
+            break;
+        case 'freeze':
+            args.push('-freeze');
+            break;
+        case 'finalize':
+            args.push('-finalize');
+            break;
+        case 'compile-tests':
+        case 'run-tests':
+            // Just compile to W_code
+            break;
+    }
+
+    // Add C compile flag
+    args.push('-c_compile');
+
+    compileChannel.clear();
+    compileChannel.show(true);
+    compileChannel.appendLine(`=== Eiffel ${compileType.toUpperCase()} ===`);
+    compileChannel.appendLine(`Compiler: ${compilerPath}`);
+    compileChannel.appendLine(`ECF: ${ecfFile}`);
+    compileChannel.appendLine(`Target: ${target || '(default)'}`);
+    compileChannel.appendLine(`Command: ${compilerPath} ${args.join(' ')}`);
+    compileChannel.appendLine('');
+    compileChannel.appendLine('--- Output ---');
+
+    // Run the compiler with streaming output
+    const startTime = Date.now();
+
+    try {
+        const exitCode = await runCommandWithStream(compilerPath, args, wsRoot, compileChannel);
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+
+        compileChannel.appendLine('');
+        compileChannel.appendLine('--- Result ---');
+
+        if (exitCode === 0) {
+            compileChannel.appendLine(`SUCCESS (${elapsed}s)`);
+            window.showInformationMessage(`Eiffel ${compileType} completed successfully`);
+
+            // If run-tests, execute the test runner
+            if (compileType === 'run-tests') {
+                await runTests(wsRoot, ecfBaseName, target);
+            }
+        } else {
+            compileChannel.appendLine(`FAILED with exit code ${exitCode} (${elapsed}s)`);
+            window.showErrorMessage(`Eiffel ${compileType} failed`);
+        }
+    } catch (error) {
+        compileChannel.appendLine(`ERROR: ${error}`);
+        window.showErrorMessage(`Eiffel compile error: ${error}`);
+    }
+}
+
+/**
+ * Run a command with streaming output to the output channel
+ */
+function runCommandWithStream(command: string, args: string[], cwd: string, channel: OutputChannel): Promise<number> {
+    return new Promise((resolve, reject) => {
+        // On Windows, spawn with shell:true needs quoted paths for spaces
+        // Use shell: false and quote the command ourselves for reliability
+        const proc = cp.spawn(command, args, {
+            cwd,
+            shell: false,
+            windowsVerbatimArguments: false
+        });
+
+        proc.stdout.on('data', (data: Buffer) => {
+            channel.append(data.toString());
+        });
+
+        proc.stderr.on('data', (data: Buffer) => {
+            channel.append(data.toString());
+        });
+
+        proc.on('error', (err) => {
+            reject(err);
+        });
+
+        proc.on('close', (code) => {
+            resolve(code ?? 1);
+        });
+    });
+}
+
+/**
+ * Run the test executable
+ */
+async function runTests(wsRoot: string, ecfBaseName: string, target: string) {
+    const targetName = target || ecfBaseName + '_tests';
+    const exePath = path.join(wsRoot, 'EIFGENs', targetName, 'W_code', ecfBaseName + '.exe');
+
+    if (!fs.existsSync(exePath)) {
+        compileChannel.appendLine(`Test executable not found: ${exePath}`);
+        return;
+    }
+
+    compileChannel.appendLine('');
+    compileChannel.appendLine('--- Running Tests ---');
+    compileChannel.appendLine(`Executable: ${exePath}`);
+    compileChannel.appendLine('');
+
+    try {
+        const exitCode = await runCommandWithStream(exePath, [], wsRoot, compileChannel);
+        compileChannel.appendLine('');
+        if (exitCode === 0) {
+            compileChannel.appendLine('Tests completed successfully');
+        } else {
+            compileChannel.appendLine(`Tests exited with code ${exitCode}`);
+        }
+    } catch (error) {
+        compileChannel.appendLine(`Error running tests: ${error}`);
+    }
+}
+
+/**
+ * Clean (delete) the EIFGENs folder
+ */
+async function cleanEifgens() {
+    const workspaceFolders = workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+        window.showErrorMessage('No workspace folder open');
+        return;
+    }
+
+    const wsRoot = workspaceFolders[0].uri.fsPath;
+    const eifgensPath = path.join(wsRoot, 'EIFGENs');
+
+    if (!fs.existsSync(eifgensPath)) {
+        window.showInformationMessage('EIFGENs folder does not exist - nothing to clean');
+        return;
+    }
+
+    const answer = await window.showWarningMessage(
+        'Delete the EIFGENs folder? This will remove all compiled code.',
+        { modal: true },
+        'Delete'
+    );
+
+    if (answer === 'Delete') {
+        compileChannel.clear();
+        compileChannel.show(true);
+        compileChannel.appendLine('=== Eiffel CLEAN ===');
+        compileChannel.appendLine(`Deleting: ${eifgensPath}`);
+
+        try {
+            // Use rimraf-style recursive delete
+            fs.rmSync(eifgensPath, { recursive: true, force: true });
+            compileChannel.appendLine('EIFGENs folder deleted successfully');
+            window.showInformationMessage('EIFGENs folder deleted');
+        } catch (error) {
+            compileChannel.appendLine(`Error: ${error}`);
+            window.showErrorMessage(`Failed to delete EIFGENs: ${error}`);
+        }
+    }
+}
+
+/**
+ * Find an .ecf file in the workspace
+ */
+async function findEcfFile(wsRoot: string): Promise<string | undefined> {
+    const files = fs.readdirSync(wsRoot);
+    const ecfFiles = files.filter(f => f.endsWith('.ecf'));
+
+    if (ecfFiles.length === 0) {
+        return undefined;
+    }
+
+    if (ecfFiles.length === 1) {
+        return path.join(wsRoot, ecfFiles[0]);
+    }
+
+    // Multiple ECF files - let user choose
+    const selected = await window.showQuickPick(ecfFiles, {
+        placeHolder: 'Select ECF file to compile'
+    });
+
+    return selected ? path.join(wsRoot, selected) : undefined;
+}
+
+/**
+ * Find the EiffelStudio compiler (ec.exe)
+ */
+function findCompilerPath(): string | undefined {
+    const config = workspace.getConfiguration('eiffel');
+    const exeName = process.platform === 'win32' ? 'ec.exe' : 'ec';
+
+    // 1. User-configured path
+    const configuredPath = config.get<string>('compilerPath');
+    if (configuredPath && configuredPath.trim() !== '') {
+        const expandedPath = expandEnvVars(configuredPath);
+        if (fs.existsSync(expandedPath)) {
+            return expandedPath;
+        }
+    }
+
+    // 2. ISE_EIFFEL environment variable
+    const iseEiffel = process.env.ISE_EIFFEL;
+    if (iseEiffel) {
+        const isePath = path.join(iseEiffel, 'studio', 'spec', process.platform === 'win32' ? 'win64' : 'linux-x86-64', 'bin', exeName);
+        if (fs.existsSync(isePath)) {
+            return isePath;
+        }
+    }
+
+    // 3. Common installation paths (Windows)
+    if (process.platform === 'win32') {
+        const programFiles = process.env['ProgramFiles'] || 'C:\\Program Files';
+
+        // Search for EiffelStudio installations
+        const eiffelDir = path.join(programFiles, 'Eiffel Software');
+        if (fs.existsSync(eiffelDir)) {
+            const versions = fs.readdirSync(eiffelDir);
+            // Sort descending to get latest version first
+            versions.sort().reverse();
+            for (const ver of versions) {
+                const ecPath = path.join(eiffelDir, ver, 'studio', 'spec', 'win64', 'bin', 'ec.exe');
+                if (fs.existsSync(ecPath)) {
+                    return ecPath;
+                }
+            }
+        }
+    }
+
+    return undefined;
 }
 
 /**
