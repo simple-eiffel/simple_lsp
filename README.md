@@ -248,19 +248,24 @@ feature -- LSP Operations
 
 simple_lsp is under active development. Here's what's planned:
 
-### Core LSP Features (In Progress)
+### Core LSP Features
 
 | Feature | Status | Description |
 |---------|--------|-------------|
 | ~~**Client/Supplier Display**~~ | ✅ **DONE in v0.6.0** | Show clients and suppliers in hover (who uses me, who I use) |
 | ~~**Rename Symbol**~~ | ✅ **DONE in v0.6.0** | Safely rename features/classes across workspace |
-| **Diagnostics** | **Next** | Real-time syntax error highlighting from ec.exe output |
-| **Signature Help** | Planned | Show parameter hints while typing |
+| ~~**Diagnostics**~~ | ✅ **DONE in v0.6.0** | Real-time syntax error highlighting |
+| ~~**Signature Help**~~ | ✅ **DONE in v0.6.0** | Show parameter hints while typing |
 | **Folding Ranges** | Planned | Collapse feature clauses, invariants, notes |
 | **Formatting** | Planned | Auto-format Eiffel code on save |
 | **Semantic Tokens** | Planned | Rich syntax highlighting (contracts, agents, etc.) |
 | **Call Hierarchy** | Planned | View incoming/outgoing calls for any feature |
 | **Type Hierarchy** | Planned | Visualize inheritance relationships |
+| **Document Highlight** | Planned | Highlight all occurrences of symbol in scope |
+| **Go to Type Definition** | Planned | Jump from variable to its class definition |
+| **Go to Implementation** | Planned | Find effective implementations of deferred features |
+| **Inlay Hints** | Planned | Inline type annotations and parameter names |
+| **Code Actions** | Planned | Quick fixes, auto-add precondition, extract feature |
 
 ### Advanced Features (Planned)
 
@@ -286,6 +291,42 @@ These features leverage Eiffel's unique capabilities:
 | **Feature Origin Tracking** | Show which ancestor introduced/redefined a feature |
 | **Catcall Detection** | Highlight potential catcall violations |
 | **Once Status** | Show once feature values and initialization status |
+| **Contract Heat Map** | Color classes by contract density/coverage |
+| **Contract Diff** | Compare contracts between versions/branches |
+| **"Prove This" Mode** | Highlight what needs testing to prove a postcondition |
+| **Assertion Failure Replay** | Record state at contract violation, replay |
+
+### AutoTest Replacement (VS Code Test Explorer)
+
+Full replacement for EiffelStudio's AutoTest tool:
+
+| Feature | Description |
+|---------|-------------|
+| **Test Tree View** | Sidebar showing all test classes and features |
+| **Live Results Streaming** | See tests pass/fail in real-time as they run |
+| **Contract Violation Details** | Show exact precondition/postcondition/invariant that failed with values |
+| **Test History** | Track pass/fail over time, show regression |
+| **Coverage Visualization** | Which features have test coverage |
+| **Filter/Search** | Find tests by name, status, class under test |
+| **Inline Test Status** | CodeLens above each test feature showing last result |
+| **Cherry-Pick Execution** | Run single test, test class, or subset |
+| **Test Duration** | Show timing per test |
+| **Click-to-Navigate** | Click failed test → jump to assertion line |
+| **Re-run Failed** | One-click re-run failures only |
+
+### Interactive Visualizations (Webview)
+
+Interactive diagrams with click-to-navigate:
+
+| Visualization | Description |
+|---------------|-------------|
+| **BON Class Diagrams** | Auto-generated, click class → open file |
+| **Inheritance Tree** | Visual hierarchy, click ancestor → jump to parent |
+| **Client/Supplier Graph** | Who uses whom, click edge → show call site |
+| **Cluster Diagrams** | Group classes hierarchically, expand/collapse |
+| **Contract Annotations** | Show require/ensure on diagrams (unlike UML) |
+| **Dependency Matrix** | Find circular dependencies, hub classes |
+| **SCOOP Region View** | Show separate regions, processor boundaries |
 
 ### Integration with simple_* Ecosystem
 
@@ -314,6 +355,10 @@ Ideas we're exploring that could revolutionize Eiffel development:
 | **Oracle-Powered Search** | Natural language queries: "find all features that modify balance" |
 | **Cross-Session Learning** | LSP learns your patterns, suggests based on history |
 | **Collaborative Contracts** | Share contract templates across team/organization |
+| **Per-Test Contract Coverage** | "Which test exercises this precondition?" |
+| **Diff Viewer for Assertions** | Side-by-side expected postcondition vs actual state |
+| **Graph Analysis** | Find "hub" classes, detect architectural issues |
+| **Design-Time Diagramming** | Sketch class relationships in BON, generate stubs |
 
 ### Platform Support
 
