@@ -650,16 +650,28 @@ function transformLspResponse(lspResult: any): any {
         path: lib.path,
         dbc_score: lib.score,
         feature_count: lib.feature_count,
+        attribute_count: lib.attribute_count || 0,
+        lines_of_code: lib.lines_of_code || 0,
         require_count: lib.require_count,
         ensure_count: lib.ensure_count,
+        precondition_lines: lib.precondition_lines || 0,
+        postcondition_lines: lib.postcondition_lines || 0,
+        invariant_lines: lib.invariant_lines || 0,
+        total_contract_lines: lib.total_contract_lines || 0,
         invariant_count: lib.class_count, // classes with invariants
         classes: (lib.classes || []).map((cls: any) => ({
             name: cls.name,
             path: cls.path || '',  // Use path from LSP response
             dbc_score: cls.score,
             feature_count: cls.features,
+            attribute_count: cls.attributes || 0,
+            lines_of_code: cls.loc || 0,
             require_count: cls.requires,
             ensure_count: cls.ensures,
+            precondition_lines: cls.precondition_lines || 0,
+            postcondition_lines: cls.postcondition_lines || 0,
+            invariant_lines: cls.invariant_lines || 0,
+            total_contract_lines: cls.total_contracts || 0,
             has_invariant: cls.has_invariant
         }))
     }));
@@ -670,8 +682,14 @@ function transformLspResponse(lspResult: any): any {
         library_count: libraries.length,
         class_count: lspResult.total_classes || 0,
         feature_count: lspResult.total_features || 0,
+        attribute_count: lspResult.total_attributes || 0,
+        lines_of_code: lspResult.total_loc || 0,
         require_count: lspResult.total_with_require || 0,
         ensure_count: lspResult.total_with_ensure || 0,
+        precondition_lines: lspResult.total_precondition_lines || 0,
+        postcondition_lines: lspResult.total_postcondition_lines || 0,
+        invariant_lines: lspResult.total_invariant_lines || 0,
+        total_contract_lines: lspResult.total_contract_lines || 0,
         invariant_count: lspResult.total_with_invariant || 0,
         libraries
     };
@@ -860,6 +878,9 @@ function getHeatmapHtml(): string {
             background: #1e1e1e;
             color: #d4d4d4;
             overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         #header {
             padding: 12px 20px;
@@ -868,6 +889,7 @@ function getHeatmapHtml(): string {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-shrink: 0;
         }
         #header h1 {
             font-size: 16px;
@@ -897,12 +919,38 @@ function getHeatmapHtml(): string {
             font-size: 12px;
             display: flex;
             gap: 20px;
+            flex-shrink: 0;
         }
         .stat { color: #9cdcfe; }
         .stat-value { color: #ce9178; font-weight: 500; }
+        #main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        #census-panel {
+            width: 380px;
+            min-width: 380px;
+            background: #252526;
+            border-right: 1px solid #3c3c3c;
+            overflow-y: auto;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 11px;
+        }
         #visualization {
-            width: 100%;
-            height: calc(100vh - 90px);
+            flex: 1;
+            height: 100%;
+            min-height: 0;
+        }
+        .lib-link {
+            color: #569cd6;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .lib-link:hover {
+            text-decoration: underline;
+            color: #7ecfff;
         }
         .node { cursor: pointer; }
         .node:hover { filter: brightness(1.2); }
@@ -958,7 +1006,7 @@ function getHeatmapHtml(): string {
 </head>
 <body>
     <div id="header">
-        <h1>DbC Heatmap</h1>
+        <h1>Simple Eiffel DbC Heatmap</h1>
         <div id="breadcrumb">
             <span onclick="showUniverse()">Universe</span>
         </div>
@@ -968,11 +1016,16 @@ function getHeatmapHtml(): string {
         <span class="stat">Libraries: <span class="stat-value" id="libCount">--</span></span>
         <span class="stat">Classes: <span class="stat-value" id="classCount">--</span></span>
         <span class="stat">Features: <span class="stat-value" id="featureCount">--</span></span>
-        <span class="stat">Requires: <span class="stat-value" id="requireCount">--</span></span>
-        <span class="stat">Ensures: <span class="stat-value" id="ensureCount">--</span></span>
+        <span class="stat">LOC: <span class="stat-value" id="locCount">--</span></span>
+        <span class="stat">Contracts: <span class="stat-value" id="contractCount">--</span></span>
     </div>
-    <div id="visualization">
-        <div id="loading">Loading heatmap data...</div>
+    <div id="main-content">
+        <div id="census-panel">
+            <div style="color: #6e6e6e; text-align: center;">Loading census data...</div>
+        </div>
+        <div id="visualization">
+            <div id="loading">Loading heatmap data...</div>
+        </div>
     </div>
     <div class="tooltip" style="display: none;"></div>
 
@@ -1021,11 +1074,14 @@ function getHeatmapHtml(): string {
             document.getElementById('libCount').textContent = data.library_count || 0;
             document.getElementById('classCount').textContent = data.class_count || 0;
             document.getElementById('featureCount').textContent = data.feature_count || 0;
-            document.getElementById('requireCount').textContent = data.require_count || 0;
-            document.getElementById('ensureCount').textContent = data.ensure_count || 0;
+            document.getElementById('locCount').textContent = formatNumber(data.lines_of_code || 0);
+            document.getElementById('contractCount').textContent = formatNumber(data.total_contract_lines || 0);
 
             // Update breadcrumb
             document.getElementById('breadcrumb').innerHTML = '<span onclick="showUniverse()">Universe</span>';
+
+            // Update census panel
+            updateCensusPanel(data);
 
             // Clear previous
             const container = document.getElementById('visualization');
@@ -1302,6 +1358,14 @@ function getHeatmapHtml(): string {
             });
         }
 
+        function drillDownByName(libraryName) {
+            // Called from census panel links
+            vscode.postMessage({
+                command: 'drillDown',
+                libraryName: libraryName
+            });
+        }
+
         function openFile(filePath, line) {
             vscode.postMessage({
                 command: 'openFile',
@@ -1310,20 +1374,39 @@ function getHeatmapHtml(): string {
             });
         }
 
+        function formatNumber(n) {
+            if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+            return n.toString();
+        }
+
         function showTooltip(event, d) {
             const tooltip = document.querySelector('.tooltip');
             let html = '<h4>' + d.name + '</h4>';
             html += '<div class="tooltip-row"><span class="tooltip-label">DbC Score:</span><span class="tooltip-value">' + d.score + '%</span></div>';
 
             if (d.data) {
+                if (d.data.lines_of_code !== undefined && d.data.lines_of_code > 0) {
+                    html += '<div class="tooltip-row"><span class="tooltip-label">Lines of Code:</span><span class="tooltip-value">' + formatNumber(d.data.lines_of_code) + '</span></div>';
+                }
                 if (d.data.feature_count !== undefined) {
                     html += '<div class="tooltip-row"><span class="tooltip-label">Features:</span><span class="tooltip-value">' + d.data.feature_count + '</span></div>';
                 }
-                if (d.data.require_count !== undefined) {
-                    html += '<div class="tooltip-row"><span class="tooltip-label">Requires:</span><span class="tooltip-value">' + d.data.require_count + '</span></div>';
-                }
-                if (d.data.ensure_count !== undefined) {
-                    html += '<div class="tooltip-row"><span class="tooltip-label">Ensures:</span><span class="tooltip-value">' + d.data.ensure_count + '</span></div>';
+                if (d.data.total_contract_lines !== undefined && d.data.total_contract_lines > 0) {
+                    html += '<div class="tooltip-row"><span class="tooltip-label">Contract Lines:</span><span class="tooltip-value">' + d.data.total_contract_lines + '</span></div>';
+                    // Show breakdown
+                    html += '<div style="font-size: 10px; color: #888; margin-left: 10px;">';
+                    html += 'Pre: ' + (d.data.precondition_lines || 0) + ' / ';
+                    html += 'Post: ' + (d.data.postcondition_lines || 0) + ' / ';
+                    html += 'Inv: ' + (d.data.invariant_lines || 0);
+                    html += '</div>';
+                } else {
+                    // Fallback to old metrics if new ones not available
+                    if (d.data.require_count !== undefined) {
+                        html += '<div class="tooltip-row"><span class="tooltip-label">Requires:</span><span class="tooltip-value">' + d.data.require_count + '</span></div>';
+                    }
+                    if (d.data.ensure_count !== undefined) {
+                        html += '<div class="tooltip-row"><span class="tooltip-label">Ensures:</span><span class="tooltip-value">' + d.data.ensure_count + '</span></div>';
+                    }
                 }
             }
 
@@ -1343,6 +1426,144 @@ function getHeatmapHtml(): string {
 
         function hideTooltip() {
             document.querySelector('.tooltip').style.display = 'none';
+        }
+
+        function updateCensusPanel(data) {
+            const panel = document.getElementById('census-panel');
+            if (!panel) return;
+
+            if (!data.libraries || data.libraries.length === 0) {
+                panel.innerHTML = '<div style="color: #6e6e6e; text-align: center;">No library data available</div>';
+                return;
+            }
+
+            // Calculate statistics
+            const libs = data.libraries;
+            const libCount = libs.length;
+
+            // Extract metrics arrays
+            const features = libs.map(l => l.feature_count || 0).sort((a, b) => a - b);
+            const locs = libs.map(l => l.lines_of_code || 0).sort((a, b) => a - b);
+            const contracts = libs.map(l => l.total_contract_lines || 0).sort((a, b) => a - b);
+
+            // Helper functions
+            const sum = arr => arr.reduce((a, b) => a + b, 0);
+            const min = arr => arr.length > 0 ? arr[0] : 0;
+            const max = arr => arr.length > 0 ? arr[arr.length - 1] : 0;
+            const avg = arr => arr.length > 0 ? sum(arr) / arr.length : 0;
+            const median = arr => {
+                if (arr.length === 0) return 0;
+                const mid = Math.floor(arr.length / 2);
+                return arr.length % 2 !== 0 ? arr[mid] : (arr[mid - 1] + arr[mid]) / 2;
+            };
+            const fmt = n => n.toLocaleString();
+            const fmtDec = n => n.toFixed(1);
+
+            // Totals
+            const totalClasses = data.class_count || 0;
+            const totalFeatures = data.feature_count || 0;
+            const totalLOC = data.lines_of_code || 0;
+            const totalPre = data.precondition_lines || 0;
+            const totalPost = data.postcondition_lines || 0;
+            const totalInv = data.invariant_lines || 0;
+            const totalContracts = totalPre + totalPost + totalInv;
+
+            // Build census output
+            let html = '<div style="color: #ff4500; font-weight: bold; margin-bottom: 10px;">═══════════════════════════════════════════════════════════</div>';
+            html += '<div style="color: #ff4500; font-weight: bold; text-align: center; margin-bottom: 10px;">SIMPLE EIFFEL ECOSYSTEM CENSUS</div>';
+            html += '<div style="color: #ff4500; font-weight: bold; margin-bottom: 15px;">═══════════════════════════════════════════════════════════</div>';
+
+            // TOTALS section
+            html += '<div style="color: #569cd6; margin-bottom: 5px;">── TOTALS ──</div>';
+            html += '<div style="display: flex; justify-content: space-between; max-width: 400px;">';
+            html += '<span>Libraries:</span><span style="color: #ce9178;">' + fmt(libCount) + '</span></div>';
+            html += '<div style="display: flex; justify-content: space-between; max-width: 400px;">';
+            html += '<span>Classes:</span><span style="color: #ce9178;">' + fmt(totalClasses) + '</span></div>';
+            html += '<div style="display: flex; justify-content: space-between; max-width: 400px;">';
+            html += '<span>Features:</span><span style="color: #ce9178;">' + fmt(totalFeatures) + '</span></div>';
+            html += '<div style="display: flex; justify-content: space-between; max-width: 400px;">';
+            html += '<span>Lines of Code:</span><span style="color: #ce9178;">' + fmt(totalLOC) + '</span></div>';
+            html += '<div style="display: flex; justify-content: space-between; max-width: 400px;">';
+            html += '<span>Contract Lines:</span><span style="color: #ce9178;">' + fmt(totalContracts) + '</span></div>';
+
+            // DISTRIBUTION section
+            html += '<div style="color: #569cd6; margin: 15px 0 5px 0;">── DISTRIBUTION (per library) ──</div>';
+            html += '<div style="font-family: monospace; font-size: 11px;">';
+            html += '<div style="color: #888;">                    Min      Max      Avg    Median</div>';
+            html += '<div>Features:      ' + padLeft(fmt(min(features)), 8) + padLeft(fmt(max(features)), 9) + padLeft(fmtDec(avg(features)), 9) + padLeft(fmt(Math.round(median(features))), 9) + '</div>';
+            html += '<div>LOC:           ' + padLeft(fmt(min(locs)), 8) + padLeft(fmt(max(locs)), 9) + padLeft(fmtDec(avg(locs)), 9) + padLeft(fmt(Math.round(median(locs))), 9) + '</div>';
+            html += '<div>Contracts:     ' + padLeft(fmt(min(contracts)), 8) + padLeft(fmt(max(contracts)), 9) + padLeft(fmtDec(avg(contracts)), 9) + padLeft(fmt(Math.round(median(contracts))), 9) + '</div>';
+            html += '</div>';
+
+            // CONTRACT COVERAGE section
+            html += '<div style="color: #569cd6; margin: 15px 0 5px 0;">── CONTRACT COVERAGE ──</div>';
+            html += '<div style="display: flex; justify-content: space-between; max-width: 400px;">';
+            html += '<span>Preconditions:</span><span style="color: #ce9178;">' + fmt(totalPre) + ' (' + (totalContracts > 0 ? ((totalPre / totalContracts) * 100).toFixed(1) : 0) + '%)</span></div>';
+            html += '<div style="display: flex; justify-content: space-between; max-width: 400px;">';
+            html += '<span>Postconditions:</span><span style="color: #ce9178;">' + fmt(totalPost) + ' (' + (totalContracts > 0 ? ((totalPost / totalContracts) * 100).toFixed(1) : 0) + '%)</span></div>';
+            html += '<div style="display: flex; justify-content: space-between; max-width: 400px;">';
+            html += '<span>Invariants:</span><span style="color: #ce9178;">' + fmt(totalInv) + ' (' + (totalContracts > 0 ? ((totalInv / totalContracts) * 100).toFixed(1) : 0) + '%)</span></div>';
+
+            // QUALITY METRICS section
+            html += '<div style="color: #569cd6; margin: 15px 0 5px 0;">── QUALITY METRICS ──</div>';
+            const density = totalLOC > 0 ? ((totalContracts / totalLOC) * 100).toFixed(2) : '0.00';
+            const perFeature = totalFeatures > 0 ? (totalContracts / totalFeatures).toFixed(2) : '0.00';
+            html += '<div style="display: flex; justify-content: space-between; max-width: 400px;">';
+            html += '<span>Contract Density:</span><span style="color: #ce9178;">' + density + '% of LOC</span></div>';
+            html += '<div style="display: flex; justify-content: space-between; max-width: 400px;">';
+            html += '<span>Contracts/Feature:</span><span style="color: #ce9178;">' + perFeature + '</span></div>';
+
+            // TOP N BY FEATURES (adaptive header based on count)
+            const byFeatures = [...libs].sort((a, b) => (b.feature_count || 0) - (a.feature_count || 0)).slice(0, 10);
+            const featuresLabel = byFeatures.length === 1 ? 'LIBRARY' : (byFeatures.length < 10 ? 'TOP ' + byFeatures.length : 'TOP 10');
+            html += '<div style="color: #569cd6; margin: 15px 0 5px 0;">── ' + featuresLabel + ' BY FEATURES ──</div>';
+            if (byFeatures.length === 0) {
+                html += '<div style="color: #6e6e6e; font-style: italic;">No libraries found</div>';
+            } else {
+                byFeatures.forEach((lib, i) => {
+                    html += '<div style="display: flex; justify-content: space-between; max-width: 400px;">';
+                    html += '<span>' + (i + 1) + '. <span class="lib-link" onclick="drillDownByName(\\'' + lib.name + '\\')">' + lib.name + '</span></span><span style="color: #ce9178;">' + fmt(lib.feature_count || 0) + '</span></div>';
+                });
+            }
+
+            // TOP N BY LOC (adaptive header based on count)
+            const byLOC = [...libs].sort((a, b) => (b.lines_of_code || 0) - (a.lines_of_code || 0)).slice(0, 10);
+            const locLabel = byLOC.length === 1 ? 'LIBRARY' : (byLOC.length < 10 ? 'TOP ' + byLOC.length : 'TOP 10');
+            html += '<div style="color: #569cd6; margin: 15px 0 5px 0;">── ' + locLabel + ' BY LINES OF CODE ──</div>';
+            if (byLOC.length === 0) {
+                html += '<div style="color: #6e6e6e; font-style: italic;">No libraries found</div>';
+            } else {
+                byLOC.forEach((lib, i) => {
+                    html += '<div style="display: flex; justify-content: space-between; max-width: 400px;">';
+                    html += '<span>' + (i + 1) + '. <span class="lib-link" onclick="drillDownByName(\\'' + lib.name + '\\')">' + lib.name + '</span></span><span style="color: #ce9178;">' + fmt(lib.lines_of_code || 0) + '</span></div>';
+                });
+            }
+
+            // TOP N BY CONTRACT DENSITY (adaptive header based on count)
+            const withDensity = libs.filter(l => (l.lines_of_code || 0) > 50).map(l => ({
+                ...l,
+                density: l.lines_of_code > 0 ? ((l.total_contract_lines || 0) / l.lines_of_code) * 100 : 0
+            })).sort((a, b) => b.density - a.density).slice(0, 10);
+            const densityLabel = withDensity.length === 1 ? 'LIBRARY' : (withDensity.length < 10 ? 'TOP ' + withDensity.length : 'TOP 10');
+            html += '<div style="color: #569cd6; margin: 15px 0 5px 0;">── ' + densityLabel + ' BY CONTRACT DENSITY ──</div>';
+            if (withDensity.length === 0) {
+                html += '<div style="color: #6e6e6e; font-style: italic;">No libraries with >50 LOC</div>';
+            } else {
+                withDensity.forEach((lib, i) => {
+                    html += '<div style="display: flex; justify-content: space-between; max-width: 400px;">';
+                    html += '<span>' + (i + 1) + '. <span class="lib-link" onclick="drillDownByName(\\'' + lib.name + '\\')">' + lib.name + '</span></span><span style="color: #ce9178;">' + lib.density.toFixed(1) + '%</span></div>';
+                });
+            }
+
+            html += '<div style="color: #ff4500; font-weight: bold; margin-top: 15px;">═══════════════════════════════════════════════════════════</div>';
+
+            panel.innerHTML = html;
+        }
+
+        function padLeft(str, len) {
+            str = String(str);
+            while (str.length < len) str = ' ' + str;
+            return str;
         }
     </script>
 </body>

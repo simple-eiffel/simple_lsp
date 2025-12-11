@@ -84,7 +84,7 @@ feature {NONE} -- Initialization
 
 feature -- Constants
 
-	Version: STRING = "0.8.1"
+	Version: STRING = "0.8.5"
 			-- LSP server version (update on each release)
 
 feature -- Access
@@ -735,8 +735,14 @@ feature {NONE} -- Feature Handlers
 					l_lib_obj.put_string (l_analyzer.color_for_score (l_lib_score), "color").do_nothing
 					l_lib_obj.put_integer (l_analyzer.total_classes, "class_count").do_nothing
 					l_lib_obj.put_integer (l_analyzer.total_features, "feature_count").do_nothing
+					l_lib_obj.put_integer (l_analyzer.total_attributes, "attribute_count").do_nothing
+					l_lib_obj.put_integer (l_analyzer.total_lines_of_code, "lines_of_code").do_nothing
 					l_lib_obj.put_integer (l_analyzer.total_with_require, "require_count").do_nothing
 					l_lib_obj.put_integer (l_analyzer.total_with_ensure, "ensure_count").do_nothing
+					l_lib_obj.put_integer (l_analyzer.total_precondition_lines, "precondition_lines").do_nothing
+					l_lib_obj.put_integer (l_analyzer.total_postcondition_lines, "postcondition_lines").do_nothing
+					l_lib_obj.put_integer (l_analyzer.total_invariant_lines, "invariant_lines").do_nothing
+					l_lib_obj.put_integer (l_analyzer.total_contract_lines, "total_contract_lines").do_nothing
 
 					-- Add classes
 					create l_classes.make
@@ -747,8 +753,14 @@ feature {NONE} -- Feature Handlers
 						l_class_obj.put_integer (cls.score, "score").do_nothing
 						l_class_obj.put_string (l_analyzer.color_for_score (cls.score), "color").do_nothing
 						l_class_obj.put_integer (cls.feature_count, "features").do_nothing
+						l_class_obj.put_integer (cls.attribute_count, "attributes").do_nothing
+						l_class_obj.put_integer (cls.lines_of_code, "loc").do_nothing
 						l_class_obj.put_integer (cls.require_count, "requires").do_nothing
 						l_class_obj.put_integer (cls.ensure_count, "ensures").do_nothing
+						l_class_obj.put_integer (cls.precondition_lines, "precondition_lines").do_nothing
+						l_class_obj.put_integer (cls.postcondition_lines, "postcondition_lines").do_nothing
+						l_class_obj.put_integer (cls.invariant_lines, "invariant_lines").do_nothing
+						l_class_obj.put_integer (cls.total_contract_lines, "total_contracts").do_nothing
 						l_class_obj.put_boolean (cls.has_invariant, "has_invariant").do_nothing
 						l_classes.add_object (l_class_obj).do_nothing
 					end
@@ -771,8 +783,14 @@ feature {NONE} -- Feature Handlers
 
 			-- Add totals
 			Result.put_integer (l_analyzer.total_features, "total_features").do_nothing
+			Result.put_integer (l_analyzer.total_attributes, "total_attributes").do_nothing
+			Result.put_integer (l_analyzer.total_lines_of_code, "total_loc").do_nothing
 			Result.put_integer (l_analyzer.total_with_require, "total_with_require").do_nothing
 			Result.put_integer (l_analyzer.total_with_ensure, "total_with_ensure").do_nothing
+			Result.put_integer (l_analyzer.total_precondition_lines, "total_precondition_lines").do_nothing
+			Result.put_integer (l_analyzer.total_postcondition_lines, "total_postcondition_lines").do_nothing
+			Result.put_integer (l_analyzer.total_invariant_lines, "total_invariant_lines").do_nothing
+			Result.put_integer (l_analyzer.total_contract_lines, "total_contract_lines").do_nothing
 			Result.put_integer (l_analyzer.total_classes, "total_classes").do_nothing
 			Result.put_integer (l_analyzer.total_with_invariant, "total_with_invariant").do_nothing
 			Result.put_integer (l_analyzer.total_score, "overall_score").do_nothing
@@ -780,8 +798,13 @@ feature {NONE} -- Feature Handlers
 
 			log_info ("=== DbC METRICS SUMMARY ===")
 			log_info ("Total features: " + l_analyzer.total_features.out)
+			log_info ("Total LOC: " + l_analyzer.total_lines_of_code.out)
 			log_info ("With require: " + l_analyzer.total_with_require.out)
 			log_info ("With ensure: " + l_analyzer.total_with_ensure.out)
+			log_info ("Precondition lines: " + l_analyzer.total_precondition_lines.out)
+			log_info ("Postcondition lines: " + l_analyzer.total_postcondition_lines.out)
+			log_info ("Invariant lines: " + l_analyzer.total_invariant_lines.out)
+			log_info ("Total contract lines: " + l_analyzer.total_contract_lines.out)
 			log_info ("Total classes: " + l_analyzer.total_classes.out)
 			log_info ("With invariant: " + l_analyzer.total_with_invariant.out)
 			log_info ("Overall score: " + l_analyzer.total_score.out + "%%")
