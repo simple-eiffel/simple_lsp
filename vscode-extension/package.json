@@ -2,7 +2,7 @@
   "name": "eiffel-lsp",
   "displayName": "Eiffel Language Support",
   "description": "Eiffel language support via simple_lsp - Go to Definition, Hover, Completion, Build",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "publisher": "simple-eiffel",
   "repository": {
     "type": "git",

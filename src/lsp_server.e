@@ -84,7 +84,7 @@ feature {NONE} -- Initialization
 
 feature -- Constants
 
-	Version: STRING = "0.8.0"
+	Version: STRING = "0.8.1"
 			-- LSP server version (update on each release)
 
 feature -- Access
