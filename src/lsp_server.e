@@ -42,6 +42,12 @@ feature {NONE} -- Initialization
 			create document_highlight_handler.make (logger)
 			create semantic_tokens_handler.make (logger)
 			create signature_help_handler.make (symbol_db, logger, document_cache)
+			create contract_lens_handler.make (symbol_db, logger, eifgens_parser)
+			hover_handler.set_contract_lens_handler (contract_lens_handler)
+			create call_hierarchy_handler.make (symbol_db, logger)
+			create type_hierarchy_handler.make (symbol_db, logger, eifgens_parser)
+			create implementation_handler.make (symbol_db, logger, eifgens_parser)
+			create test_runner_handler.make (symbol_db, logger, a_workspace_root)
 			create universe.make
 			is_initialized := False
 			is_running := False
@@ -68,12 +74,17 @@ feature {NONE} -- Initialization
 			document_highlight_handler_created: document_highlight_handler /= Void
 			semantic_tokens_handler_created: semantic_tokens_handler /= Void
 			signature_help_handler_created: signature_help_handler /= Void
+			contract_lens_handler_created: contract_lens_handler /= Void
+			call_hierarchy_handler_created: call_hierarchy_handler /= Void
+			type_hierarchy_handler_created: type_hierarchy_handler /= Void
+			implementation_handler_created: implementation_handler /= Void
+			test_runner_handler_created: test_runner_handler /= Void
 			universe_created: universe /= Void
 		end
 
 feature -- Constants
 
-	Version: STRING = "0.7.5"
+	Version: STRING = "0.8.0"
 			-- LSP server version (update on each release)
 
 feature -- Access
@@ -107,6 +118,21 @@ feature -- Access
 
 	signature_help_handler: LSP_SIGNATURE_HELP_HANDLER
 			-- Handler for signature help operations
+
+	contract_lens_handler: LSP_CONTRACT_LENS_HANDLER
+			-- Handler for flat contract view with inheritance attribution
+
+	call_hierarchy_handler: LSP_CALL_HIERARCHY_HANDLER
+			-- Handler for call hierarchy (who calls this / what does this call)
+
+	type_hierarchy_handler: LSP_TYPE_HIERARCHY_HANDLER
+			-- Handler for type hierarchy (inheritance tree)
+
+	implementation_handler: LSP_IMPLEMENTATION_HANDLER
+			-- Handler for go to implementation (find implementations of deferred features)
+
+	test_runner_handler: LSP_TEST_RUNNER_HANDLER
+			-- Handler for test discovery and execution
 
 	universe: SIMPLE_UCF
 			-- Universe configuration for cross-library navigation
@@ -319,6 +345,26 @@ feature {NONE} -- Message Processing
 				handle_prepare_rename (a_msg)
 			elseif a_msg.method.same_string ("eiffel/dbcMetrics") then
 				handle_dbc_metrics (a_msg)
+			elseif a_msg.method.same_string ("textDocument/prepareCallHierarchy") then
+				handle_prepare_call_hierarchy (a_msg)
+			elseif a_msg.method.same_string ("callHierarchy/incomingCalls") then
+				handle_incoming_calls (a_msg)
+			elseif a_msg.method.same_string ("callHierarchy/outgoingCalls") then
+				handle_outgoing_calls (a_msg)
+			elseif a_msg.method.same_string ("textDocument/prepareTypeHierarchy") then
+				handle_prepare_type_hierarchy (a_msg)
+			elseif a_msg.method.same_string ("typeHierarchy/supertypes") then
+				handle_supertypes (a_msg)
+			elseif a_msg.method.same_string ("typeHierarchy/subtypes") then
+				handle_subtypes (a_msg)
+			elseif a_msg.method.same_string ("textDocument/implementation") then
+				handle_implementation (a_msg)
+			elseif a_msg.method.same_string ("eiffel/discoverTests") then
+				handle_discover_tests (a_msg)
+			elseif a_msg.method.same_string ("eiffel/runTest") then
+				handle_run_test (a_msg)
+			elseif a_msg.method.same_string ("eiffel/runAllTests") then
+				handle_run_all_tests (a_msg)
 			else
 				log_warning ("Unknown method: " + a_msg.method)
 			end
@@ -394,6 +440,9 @@ feature {NONE} -- Lifecycle Handlers
 			-- l_capabilities.put_object (semantic_tokens_handler.create_options, "semanticTokensProvider").do_nothing
 			l_capabilities.put_object (signature_help_handler.create_options, "signatureHelpProvider").do_nothing
 			l_capabilities.put_boolean (True, "renameProvider").do_nothing
+			l_capabilities.put_boolean (True, "callHierarchyProvider").do_nothing
+			l_capabilities.put_boolean (True, "typeHierarchyProvider").do_nothing
+			l_capabilities.put_boolean (True, "implementationProvider").do_nothing
 
 			-- Build server info (shows in VS Code output)
 			create l_server_info.make
@@ -2001,6 +2050,263 @@ feature {NONE} -- Rename Symbol
 			end
 		ensure
 			non_negative: Result >= 0
+		end
+
+feature {NONE} -- Call Hierarchy
+
+	handle_prepare_call_hierarchy (a_msg: LSP_MESSAGE)
+			-- Handle textDocument/prepareCallHierarchy
+		require
+			msg_not_void: a_msg /= Void
+			is_request: a_msg.is_request
+		local
+			l_uri, l_path: STRING
+			l_line, l_col: INTEGER
+			l_word: STRING
+			l_result: detachable SIMPLE_JSON_ARRAY
+		do
+			l_uri := a_msg.text_document_uri
+			l_path := uri_to_path (l_uri)
+			l_line := a_msg.position_line
+			l_col := a_msg.position_character
+			l_word := word_at_position (l_path, l_line, l_col)
+
+			log_debug ("Prepare call hierarchy for: " + l_word)
+			l_result := call_hierarchy_handler.prepare_call_hierarchy (l_path, l_line, l_col, l_word)
+
+			if attached l_result then
+				send_response_array (a_msg.id, l_result)
+			else
+				send_null_response (a_msg.id)
+			end
+		end
+
+	handle_incoming_calls (a_msg: LSP_MESSAGE)
+			-- Handle callHierarchy/incomingCalls
+		require
+			msg_not_void: a_msg /= Void
+			is_request: a_msg.is_request
+		local
+			l_class_name, l_feature_name: STRING
+			l_data: STRING
+			l_dot_pos: INTEGER
+			l_result: SIMPLE_JSON_ARRAY
+		do
+			-- Get class.feature from item data
+			l_class_name := ""
+			l_feature_name := ""
+			if attached a_msg.params as l_params then
+				if attached l_params.object_item ("item") as l_item then
+					if attached l_item.string_item ("data") as d then
+						l_data := d.to_string_8
+						l_dot_pos := l_data.index_of ('.', 1)
+						if l_dot_pos > 0 then
+							l_class_name := l_data.substring (1, l_dot_pos - 1)
+							l_feature_name := l_data.substring (l_dot_pos + 1, l_data.count)
+						end
+					end
+				end
+			end
+
+			log_debug ("Incoming calls for: " + l_class_name + "." + l_feature_name)
+			l_result := call_hierarchy_handler.get_incoming_calls (l_class_name, l_feature_name)
+			send_response_array (a_msg.id, l_result)
+		end
+
+	handle_outgoing_calls (a_msg: LSP_MESSAGE)
+			-- Handle callHierarchy/outgoingCalls
+		require
+			msg_not_void: a_msg /= Void
+			is_request: a_msg.is_request
+		local
+			l_class_name, l_feature_name: STRING
+			l_data: STRING
+			l_dot_pos: INTEGER
+			l_result: SIMPLE_JSON_ARRAY
+		do
+			-- Get class.feature from item data
+			l_class_name := ""
+			l_feature_name := ""
+			if attached a_msg.params as l_params then
+				if attached l_params.object_item ("item") as l_item then
+					if attached l_item.string_item ("data") as d then
+						l_data := d.to_string_8
+						l_dot_pos := l_data.index_of ('.', 1)
+						if l_dot_pos > 0 then
+							l_class_name := l_data.substring (1, l_dot_pos - 1)
+							l_feature_name := l_data.substring (l_dot_pos + 1, l_data.count)
+						end
+					end
+				end
+			end
+
+			log_debug ("Outgoing calls from: " + l_class_name + "." + l_feature_name)
+			l_result := call_hierarchy_handler.get_outgoing_calls (l_class_name, l_feature_name)
+			send_response_array (a_msg.id, l_result)
+		end
+
+feature {NONE} -- Type Hierarchy
+
+	handle_prepare_type_hierarchy (a_msg: LSP_MESSAGE)
+			-- Handle textDocument/prepareTypeHierarchy
+		require
+			msg_not_void: a_msg /= Void
+			is_request: a_msg.is_request
+		local
+			l_uri, l_path: STRING
+			l_line, l_col: INTEGER
+			l_word: STRING
+			l_result: detachable SIMPLE_JSON_ARRAY
+		do
+			l_uri := a_msg.text_document_uri
+			l_path := uri_to_path (l_uri)
+			l_line := a_msg.position_line
+			l_col := a_msg.position_character
+			l_word := word_at_position (l_path, l_line, l_col)
+
+			log_debug ("Prepare type hierarchy for: " + l_word)
+			l_result := type_hierarchy_handler.prepare_type_hierarchy (l_word)
+
+			if attached l_result then
+				send_response_array (a_msg.id, l_result)
+			else
+				send_null_response (a_msg.id)
+			end
+		end
+
+	handle_supertypes (a_msg: LSP_MESSAGE)
+			-- Handle typeHierarchy/supertypes
+		require
+			msg_not_void: a_msg /= Void
+			is_request: a_msg.is_request
+		local
+			l_class_name: STRING
+			l_result: SIMPLE_JSON_ARRAY
+		do
+			l_class_name := ""
+			if attached a_msg.params as l_params then
+				if attached l_params.object_item ("item") as l_item then
+					if attached l_item.string_item ("data") as d then
+						l_class_name := d.to_string_8
+					end
+				end
+			end
+
+			log_debug ("Supertypes for: " + l_class_name)
+			l_result := type_hierarchy_handler.get_supertypes (l_class_name)
+			send_response_array (a_msg.id, l_result)
+		end
+
+	handle_subtypes (a_msg: LSP_MESSAGE)
+			-- Handle typeHierarchy/subtypes
+		require
+			msg_not_void: a_msg /= Void
+			is_request: a_msg.is_request
+		local
+			l_class_name: STRING
+			l_result: SIMPLE_JSON_ARRAY
+		do
+			l_class_name := ""
+			if attached a_msg.params as l_params then
+				if attached l_params.object_item ("item") as l_item then
+					if attached l_item.string_item ("data") as d then
+						l_class_name := d.to_string_8
+					end
+				end
+			end
+
+			log_debug ("Subtypes for: " + l_class_name)
+			l_result := type_hierarchy_handler.get_subtypes (l_class_name)
+			send_response_array (a_msg.id, l_result)
+		end
+
+	handle_implementation (a_msg: LSP_MESSAGE)
+			-- Handle textDocument/implementation - find implementations of deferred features
+		require
+			msg_not_void: a_msg /= Void
+			is_request: a_msg.is_request
+		local
+			l_uri, l_path: STRING
+			l_line, l_col: INTEGER
+			l_word: STRING
+			l_class_name: STRING
+			l_result: SIMPLE_JSON_ARRAY
+			l_base, l_ext_pos: INTEGER
+		do
+			l_uri := a_msg.text_document_uri
+			l_path := uri_to_path (l_uri)
+			l_line := a_msg.position_line
+			l_col := a_msg.position_character
+			l_word := word_at_position (l_path, l_line, l_col)
+
+			-- Extract class name from file path (e.g., /path/to/my_class.e -> MY_CLASS)
+			l_base := l_path.last_index_of ('/', l_path.count)
+			if l_base = 0 then
+				l_base := l_path.last_index_of ('\', l_path.count)
+			end
+			l_class_name := l_path.substring (l_base + 1, l_path.count)
+			l_ext_pos := l_class_name.last_index_of ('.', l_class_name.count)
+			if l_ext_pos > 0 then
+				l_class_name := l_class_name.substring (1, l_ext_pos - 1)
+			end
+			l_class_name := l_class_name.as_upper
+
+			log_debug ("Implementation for: " + l_class_name + "." + l_word)
+
+			-- Get implementations
+			l_result := implementation_handler.get_implementations (l_class_name, l_word)
+			send_response_array (a_msg.id, l_result)
+		end
+
+	handle_discover_tests (a_msg: LSP_MESSAGE)
+			-- Handle eiffel/discoverTests - discover all test classes and methods
+		require
+			msg_not_void: a_msg /= Void
+			is_request: a_msg.is_request
+		local
+			l_result: SIMPLE_JSON_ARRAY
+		do
+			log_debug ("Discovering tests...")
+			l_result := test_runner_handler.discover_tests
+			send_response_array (a_msg.id, l_result)
+		end
+
+	handle_run_test (a_msg: LSP_MESSAGE)
+			-- Handle eiffel/runTest - run a single test
+		require
+			msg_not_void: a_msg /= Void
+			is_request: a_msg.is_request
+		local
+			l_class_name, l_test_name: STRING
+			l_result: SIMPLE_JSON_OBJECT
+		do
+			l_class_name := ""
+			l_test_name := ""
+			if attached a_msg.params as l_params then
+				if attached l_params.string_item ("className") as cn then
+					l_class_name := cn.to_string_8
+				end
+				if attached l_params.string_item ("testName") as tn then
+					l_test_name := tn.to_string_8
+				end
+			end
+
+			log_debug ("Running test: " + l_class_name + "." + l_test_name)
+			l_result := test_runner_handler.run_test (l_class_name, l_test_name)
+			send_response (a_msg.id, l_result)
+		end
+
+	handle_run_all_tests (a_msg: LSP_MESSAGE)
+			-- Handle eiffel/runAllTests - run all discovered tests
+		require
+			msg_not_void: a_msg /= Void
+			is_request: a_msg.is_request
+		local
+			l_result: SIMPLE_JSON_ARRAY
+		do
+			log_debug ("Running all tests...")
+			l_result := test_runner_handler.run_all_tests
+			send_response_array (a_msg.id, l_result)
 		end
 
 feature {NONE} -- Path Helpers

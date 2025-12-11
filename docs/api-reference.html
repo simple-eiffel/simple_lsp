@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>simple_lsp API Reference</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/png" href="images/logo.png">
+    <style>
+        .api-class {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .api-class h3 {
+            color: #ff6b35;
+            margin-top: 0;
+            border-bottom: 1px solid #333;
+            padding-bottom: 0.5rem;
+        }
+        .api-feature {
+            background: #16213e;
+            border-left: 3px solid #ff6b35;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-family: monospace;
+        }
+        .api-feature .signature {
+            color: #4ecdc4;
+            font-weight: bold;
+        }
+        .api-feature .description {
+            color: #ccc;
+            margin-top: 0.5rem;
+            font-family: sans-serif;
+        }
+        .api-feature .contract {
+            color: #888;
+            font-size: 0.9em;
+            margin-top: 0.5rem;
+        }
+        .api-feature .contract strong {
+            color: #ff6b35;
+        }
+        .class-hierarchy {
+            font-family: monospace;
+            background: #0f0f23;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+        .toc {
+            background: #1a1a2e;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+        .toc h3 {
+            margin-top: 0;
+            color: #ff6b35;
+        }
+        .toc ul {
+            columns: 2;
+            list-style: none;
+            padding: 0;
+        }
+        .toc li {
+            margin: 0.3rem 0;
+        }
+        .toc a {
+            color: #4ecdc4;
+        }
+        .handler-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        .handler-table th, .handler-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+        .handler-table th {
+            background: #1a1a2e;
+            color: #ff6b35;
+        }
+        .handler-table code {
+            background: #0f0f23;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo-container">
+            <img src="https://raw.githubusercontent.com/simple-eiffel/claude_eiffel_op_docs/main/artwork/LOGO.png" alt="simple_* logo" class="logo">
+        </div>
+        <h1>simple_lsp API Reference</h1>
+        <p class="tagline">Developer Documentation for Extending and Maintaining simple_lsp</p>
+        <div class="badges">
+            <span class="badge badge-version">v0.8.0</span>
+            <span class="badge badge-license">MIT</span>
+        </div>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="user-guide.html">User Guide</a></li>
+            <li><a href="#overview">API Overview</a></li>
+            <li><a href="#classes">Class Reference</a></li>
+            <li><a href="architecture.html">Architecture</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <section id="overview">
+            <h2>API Overview</h2>
+            <p>
+                simple_lsp is built with a clean handler-based architecture. Each LSP capability is implemented
+                by a dedicated handler class that can be extended or replaced. All classes use Design by Contract
+                for reliability.
+            </p>
+
+            <div class="toc">
+                <h3>Class Index</h3>
+                <ul>
+                    <li><a href="#lsp-server">LSP_SERVER</a> - Main server</li>
+                    <li><a href="#lsp-application">LSP_APPLICATION</a> - Entry point</li>
+                    <li><a href="#lsp-symbol-database">LSP_SYMBOL_DATABASE</a> - Symbol storage</li>
+                    <li><a href="#lsp-navigation-handler">LSP_NAVIGATION_HANDLER</a> - Navigation</li>
+                    <li><a href="#lsp-hover-handler">LSP_HOVER_HANDLER</a> - Hover info</li>
+                    <li><a href="#lsp-completion-handler">LSP_COMPLETION_HANDLER</a> - Autocomplete</li>
+                    <li><a href="#lsp-rename-handler">LSP_RENAME_HANDLER</a> - Rename</li>
+                    <li><a href="#lsp-contract-lens-handler">LSP_CONTRACT_LENS_HANDLER</a> - Contracts</li>
+                    <li><a href="#lsp-call-hierarchy-handler">LSP_CALL_HIERARCHY_HANDLER</a> - Call graph</li>
+                    <li><a href="#lsp-type-hierarchy-handler">LSP_TYPE_HIERARCHY_HANDLER</a> - Inheritance</li>
+                    <li><a href="#lsp-implementation-handler">LSP_IMPLEMENTATION_HANDLER</a> - Implementations</li>
+                    <li><a href="#lsp-test-runner-handler">LSP_TEST_RUNNER_HANDLER</a> - Test runner</li>
+                    <li><a href="#lsp-logger">LSP_LOGGER</a> - Logging</li>
+                    <li><a href="#lsp-message">LSP_MESSAGE</a> - JSON-RPC</li>
+                </ul>
+            </div>
+
+            <h3>Handler Architecture</h3>
+            <p>Each LSP method is handled by a dedicated handler class:</p>
+            <table class="handler-table">
+                <tr>
+                    <th>LSP Method</th>
+                    <th>Handler Class</th>
+                    <th>Primary Feature</th>
+                </tr>
+                <tr>
+                    <td><code>textDocument/definition</code></td>
+                    <td>LSP_NAVIGATION_HANDLER</td>
+                    <td><code>find_definition</code></td>
+                </tr>
+                <tr>
+                    <td><code>textDocument/references</code></td>
+                    <td>LSP_NAVIGATION_HANDLER</td>
+                    <td><code>find_references</code></td>
+                </tr>
+                <tr>
+                    <td><code>textDocument/documentSymbol</code></td>
+                    <td>LSP_NAVIGATION_HANDLER</td>
+                    <td><code>get_document_symbols</code></td>
+                </tr>
+                <tr>
+                    <td><code>workspace/symbol</code></td>
+                    <td>LSP_NAVIGATION_HANDLER</td>
+                    <td><code>search_symbols</code></td>
+                </tr>
+                <tr>
+                    <td><code>textDocument/hover</code></td>
+                    <td>LSP_HOVER_HANDLER</td>
+                    <td><code>get_hover_info</code></td>
+                </tr>
+                <tr>
+                    <td><code>textDocument/completion</code></td>
+                    <td>LSP_COMPLETION_HANDLER</td>
+                    <td><code>get_completions</code></td>
+                </tr>
+                <tr>
+                    <td><code>textDocument/rename</code></td>
+                    <td>LSP_RENAME_HANDLER</td>
+                    <td><code>rename_symbol</code></td>
+                </tr>
+                <tr>
+                    <td><code>textDocument/signatureHelp</code></td>
+                    <td>LSP_SIGNATURE_HELP_HANDLER</td>
+                    <td><code>get_signature_help</code></td>
+                </tr>
+                <tr>
+                    <td><code>textDocument/implementation</code></td>
+                    <td>LSP_IMPLEMENTATION_HANDLER</td>
+                    <td><code>get_implementations</code></td>
+                </tr>
+                <tr>
+                    <td><code>callHierarchy/incomingCalls</code></td>
+                    <td>LSP_CALL_HIERARCHY_HANDLER</td>
+                    <td><code>get_incoming_calls</code></td>
+                </tr>
+                <tr>
+                    <td><code>callHierarchy/outgoingCalls</code></td>
+                    <td>LSP_CALL_HIERARCHY_HANDLER</td>
+                    <td><code>get_outgoing_calls</code></td>
+                </tr>
+                <tr>
+                    <td><code>typeHierarchy/supertypes</code></td>
+                    <td>LSP_TYPE_HIERARCHY_HANDLER</td>
+                    <td><code>get_supertypes</code></td>
+                </tr>
+                <tr>
+                    <td><code>typeHierarchy/subtypes</code></td>
+                    <td>LSP_TYPE_HIERARCHY_HANDLER</td>
+                    <td><code>get_subtypes</code></td>
+                </tr>
+                <tr>
+                    <td><code>eiffel/discoverTests</code></td>
+                    <td>LSP_TEST_RUNNER_HANDLER</td>
+                    <td><code>discover_tests</code></td>
+                </tr>
+                <tr>
+                    <td><code>eiffel/runTest</code></td>
+                    <td>LSP_TEST_RUNNER_HANDLER</td>
+                    <td><code>run_test</code></td>
+                </tr>
+            </table>
+        </section>
+
+        <section id="classes">
+            <h2>Class Reference</h2>
+
+            <!-- LSP_SERVER -->
+            <div class="api-class" id="lsp-server">
+                <h3>LSP_SERVER</h3>
+                <p>Main LSP server class. Handles JSON-RPC communication and dispatches requests to handlers.</p>
+
+                <div class="class-hierarchy">
+LSP_SERVER
+    inherit: ANY
+    dependencies: LSP_SYMBOL_DATABASE, EIFFEL_PARSER, LSP_LOGGER, EIFGENS_METADATA_PARSER, SIMPLE_UCF
+                </div>
+
+                <h4>Creation</h4>
+                <div class="api-feature">
+                    <div class="signature">make (a_workspace_root: STRING)</div>
+                    <div class="description">Create LSP server for the given workspace root directory.</div>
+                    <div class="contract">
+                        <strong>require</strong> root_not_void: a_workspace_root /= Void<br>
+                        <strong>require</strong> root_not_empty: not a_workspace_root.is_empty<br>
+                        <strong>ensure</strong> root_set: workspace_root = a_workspace_root<br>
+                        <strong>ensure</strong> not_initialized: not is_initialized
+                    </div>
+                </div>
+
+                <h4>Constants</h4>
+                <div class="api-feature">
+                    <div class="signature">Version: STRING = "0.8.0"</div>
+                    <div class="description">LSP server version string. Update on each release.</div>
+                </div>
+
+                <h4>Access</h4>
+                <div class="api-feature">
+                    <div class="signature">workspace_root: STRING</div>
+                    <div class="description">Root directory of the workspace being served.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">is_initialized: BOOLEAN</div>
+                    <div class="description">Has the client sent an initialize request?</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">is_running: BOOLEAN</div>
+                    <div class="description">Is the server currently running its main loop?</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">symbol_db: LSP_SYMBOL_DATABASE</div>
+                    <div class="description">SQLite database for symbol storage and lookup.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">universe: SIMPLE_UCF</div>
+                    <div class="description">Universe configuration for cross-library navigation.</div>
+                </div>
+
+                <h4>Handler Attributes</h4>
+                <div class="api-feature">
+                    <div class="signature">navigation_handler: LSP_NAVIGATION_HANDLER</div>
+                    <div class="description">Handler for definition, references, and symbol operations.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">hover_handler: LSP_HOVER_HANDLER</div>
+                    <div class="description">Handler for hover documentation.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">completion_handler: LSP_COMPLETION_HANDLER</div>
+                    <div class="description">Handler for code completion.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">rename_handler: LSP_RENAME_HANDLER</div>
+                    <div class="description">Handler for symbol renaming.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">contract_lens_handler: LSP_CONTRACT_LENS_HANDLER</div>
+                    <div class="description">Handler for flat contract views with inheritance attribution.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">call_hierarchy_handler: LSP_CALL_HIERARCHY_HANDLER</div>
+                    <div class="description">Handler for incoming/outgoing call analysis.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">type_hierarchy_handler: LSP_TYPE_HIERARCHY_HANDLER</div>
+                    <div class="description">Handler for supertype/subtype hierarchy.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">implementation_handler: LSP_IMPLEMENTATION_HANDLER</div>
+                    <div class="description">Handler for finding implementations of deferred features.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">test_runner_handler: LSP_TEST_RUNNER_HANDLER</div>
+                    <div class="description">Handler for test discovery and execution.</div>
+                </div>
+
+                <h4>Main Operations</h4>
+                <div class="api-feature">
+                    <div class="signature">run</div>
+                    <div class="description">Start the main server loop. Reads messages from stdin, processes them, and writes responses to stdout.</div>
+                    <div class="contract">
+                        <strong>require</strong> not_already_running: not is_running<br>
+                        <strong>ensure</strong> stopped: not is_running
+                    </div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">shutdown</div>
+                    <div class="description">Gracefully shutdown the server, closing database and log files.</div>
+                    <div class="contract">
+                        <strong>ensure</strong> not_running: not is_running
+                    </div>
+                </div>
+            </div>
+
+            <!-- LSP_APPLICATION -->
+            <div class="api-class" id="lsp-application">
+                <h3>LSP_APPLICATION</h3>
+                <p>Main application entry point. Creates the server and runs it.</p>
+
+                <h4>Creation</h4>
+                <div class="api-feature">
+                    <div class="signature">make</div>
+                    <div class="description">Create and run the LSP server. Takes workspace root from command line argument or uses current directory.</div>
+                </div>
+
+                <h4>Arguments</h4>
+                <div class="api-feature">
+                    <div class="signature">argument_count: INTEGER</div>
+                    <div class="description">Number of command line arguments (via C inline external).</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">argument (n: INTEGER): STRING</div>
+                    <div class="description">Get command line argument at position n (1-based).</div>
+                    <div class="contract">
+                        <strong>require</strong> valid_index: n >= 1 and n <= argument_count
+                    </div>
+                </div>
+            </div>
+
+            <!-- LSP_SYMBOL_DATABASE -->
+            <div class="api-class" id="lsp-symbol-database">
+                <h3>LSP_SYMBOL_DATABASE</h3>
+                <p>SQLite database for storing and querying Eiffel symbols (classes, features, inheritance).</p>
+
+                <div class="class-hierarchy">
+LSP_SYMBOL_DATABASE
+    inherit: ANY
+    dependencies: SIMPLE_SQL_DATABASE
+                </div>
+
+                <h4>Creation</h4>
+                <div class="api-feature">
+                    <div class="signature">make (a_db_path: STRING)</div>
+                    <div class="description">Create or open symbol database at the given path. Creates schema if needed.</div>
+                    <div class="contract">
+                        <strong>require</strong> path_not_empty: a_db_path /= Void and then not a_db_path.is_empty<br>
+                        <strong>ensure</strong> path_set: db_path = a_db_path
+                    </div>
+                </div>
+
+                <h4>Class Operations</h4>
+                <div class="api-feature">
+                    <div class="signature">add_class (a_name, a_file_path: STRING; a_line, a_column: INTEGER; a_mtime: INTEGER_64)</div>
+                    <div class="description">Add or update a class in the database.</div>
+                    <div class="contract">
+                        <strong>require</strong> name_not_empty: not a_name.is_empty<br>
+                        <strong>require</strong> path_not_empty: not a_file_path.is_empty
+                    </div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">add_class_full (a_name, a_file_path: STRING; a_line, a_column: INTEGER; a_is_deferred, a_is_expanded, a_is_frozen: BOOLEAN; a_header_comment: STRING; a_mtime: INTEGER_64)</div>
+                    <div class="description">Add class with all attributes including deferred/expanded/frozen flags and header comment.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">find_class (a_name: STRING): detachable TUPLE [id: INTEGER; file_path: STRING; line, column: INTEGER]</div>
+                    <div class="description">Find class by name (case-insensitive). Returns Void if not found.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">class_id (a_name: STRING): INTEGER</div>
+                    <div class="description">Get class ID by name. Returns 0 if not found.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">all_class_names: ARRAYED_LIST [STRING]</div>
+                    <div class="description">Get all class names in the database, ordered alphabetically.</div>
+                </div>
+
+                <h4>Feature Operations</h4>
+                <div class="api-feature">
+                    <div class="signature">add_feature (a_class_id: INTEGER; a_name, a_kind: STRING; a_line, a_column: INTEGER)</div>
+                    <div class="description">Add a feature to a class. Kind is "function", "procedure", or "attribute".</div>
+                    <div class="contract">
+                        <strong>require</strong> class_exists: a_class_id > 0
+                    </div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">add_feature_full (a_class_id: INTEGER; a_name, a_kind: STRING; a_line, a_column: INTEGER; a_return_type, a_signature, a_precondition, a_postcondition, a_header_comment: STRING; a_is_deferred, a_is_frozen: BOOLEAN; a_export_status: STRING)</div>
+                    <div class="description">Add feature with all attributes including contracts and export status.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">find_feature (a_class_name, a_feature_name: STRING): detachable TUPLE [file_path: STRING; line, column: INTEGER; signature, comment: STRING]</div>
+                    <div class="description">Find feature in class by name (case-insensitive).</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">features_for_class (a_class_name: STRING): ARRAYED_LIST [TUPLE [name, kind, signature: STRING; line: INTEGER]]</div>
+                    <div class="description">Get all features for a class, ordered by line number.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">all_features_named (a_name: STRING): ARRAYED_LIST [TUPLE [class_name, file_path: STRING; line: INTEGER]]</div>
+                    <div class="description">Find all features with the given name across all classes.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">all_features: ARRAYED_LIST [TUPLE [name, class_name, kind, signature: STRING; line: INTEGER]]</div>
+                    <div class="description">Get ALL features from all classes (for completion).</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">search_symbols (a_query: STRING): ARRAYED_LIST [TUPLE [name, kind, container, file_path: STRING; line: INTEGER]]</div>
+                    <div class="description">Search for symbols matching query pattern (for workspace symbol search). Limited to 100 results.</div>
+                </div>
+
+                <h4>Type Reference Operations</h4>
+                <div class="api-feature">
+                    <div class="signature">add_type_reference (a_from_class_id: INTEGER; a_to_type_name: STRING; a_context: STRING)</div>
+                    <div class="description">Record that a class uses another type. Context: "attribute", "local", "argument", "return", "creation", "inherit".</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">suppliers_of (a_class_name: STRING): ARRAYED_LIST [STRING]</div>
+                    <div class="description">Get types that a class uses (its suppliers).</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">clients_of (a_class_name: STRING): ARRAYED_LIST [STRING]</div>
+                    <div class="description">Get classes that use a class (its clients).</div>
+                </div>
+
+                <h4>Inheritance Operations</h4>
+                <div class="api-feature">
+                    <div class="signature">add_inheritance (a_child_id: INTEGER; a_parent_name: STRING)</div>
+                    <div class="description">Add an inheritance relationship from child class to parent.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">parents_of (a_class_name: STRING): ARRAYED_LIST [STRING]</div>
+                    <div class="description">Get direct parent class names.</div>
+                </div>
+
+                <h4>File Operations</h4>
+                <div class="api-feature">
+                    <div class="signature">file_mtime (a_path: STRING): INTEGER_64</div>
+                    <div class="description">Get stored modification time for a file. Returns 0 if not found.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">clear_file (a_path: STRING)</div>
+                    <div class="description">Remove all symbols from a file (before reparsing). Cascades to features and inheritance.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">all_file_paths: ARRAYED_LIST [STRING]</div>
+                    <div class="description">Get all indexed file paths.</div>
+                </div>
+
+                <h4>Diagnostics</h4>
+                <div class="api-feature">
+                    <div class="signature">add_error (a_file_path: STRING; a_line, a_column: INTEGER; a_message, a_severity: STRING)</div>
+                    <div class="description">Add a parse error for a file.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">errors_for_file (a_path: STRING): ARRAYED_LIST [TUPLE [line, column: INTEGER; message, severity: STRING]]</div>
+                    <div class="description">Get all parse errors for a file.</div>
+                </div>
+
+                <h4>Lifecycle</h4>
+                <div class="api-feature">
+                    <div class="signature">close</div>
+                    <div class="description">Close the database connection.</div>
+                </div>
+            </div>
+
+            <!-- LSP_NAVIGATION_HANDLER -->
+            <div class="api-class" id="lsp-navigation-handler">
+                <h3>LSP_NAVIGATION_HANDLER</h3>
+                <p>Handler for LSP navigation operations: go to definition, find references, document symbols, workspace symbols.</p>
+
+                <h4>Creation</h4>
+                <div class="api-feature">
+                    <div class="signature">make (a_db: LSP_SYMBOL_DATABASE; a_logger: LSP_LOGGER; a_parser: EIFFEL_PARSER)</div>
+                    <div class="description">Create handler with database, logger, and parser dependencies.</div>
+                    <div class="contract">
+                        <strong>require</strong> db_not_void: a_db /= Void<br>
+                        <strong>require</strong> logger_not_void: a_logger /= Void<br>
+                        <strong>require</strong> parser_not_void: a_parser /= Void
+                    </div>
+                </div>
+
+                <h4>Operations</h4>
+                <div class="api-feature">
+                    <div class="signature">find_definition (a_word: STRING): detachable SIMPLE_JSON_OBJECT</div>
+                    <div class="description">Find definition location for a word (class or feature name). Returns LSP Location object or Void.</div>
+                    <div class="contract">
+                        <strong>require</strong> word_not_empty: not a_word.is_empty
+                    </div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">find_references (a_name: STRING): SIMPLE_JSON_ARRAY</div>
+                    <div class="description">Find all references to a symbol. Returns array of LSP Location objects.</div>
+                    <div class="contract">
+                        <strong>ensure</strong> result_not_void: Result /= Void
+                    </div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">get_document_symbols (a_path: STRING): SIMPLE_JSON_ARRAY</div>
+                    <div class="description">Get document symbols for a file. Returns array of LSP DocumentSymbol objects.</div>
+                    <div class="contract">
+                        <strong>require</strong> path_not_empty: not a_path.is_empty
+                    </div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">get_workspace_symbols (a_query: STRING): SIMPLE_JSON_ARRAY</div>
+                    <div class="description">Search for symbols matching query. Returns array of LSP SymbolInformation objects.</div>
+                </div>
+            </div>
+
+            <!-- LSP_HOVER_HANDLER -->
+            <div class="api-class" id="lsp-hover-handler">
+                <h3>LSP_HOVER_HANDLER</h3>
+                <p>Handler for LSP hover operations. Shows documentation, contracts, inheritance, and type information.</p>
+
+                <h4>Creation</h4>
+                <div class="api-feature">
+                    <div class="signature">make (a_db: LSP_SYMBOL_DATABASE; a_logger: LSP_LOGGER; a_eifgens_parser: EIFGENS_METADATA_PARSER)</div>
+                    <div class="description">Create handler with database, logger, and EIFGENs parser for inheritance info.</div>
+                </div>
+
+                <h4>Configuration</h4>
+                <div class="api-feature">
+                    <div class="signature">set_contract_lens_handler (a_handler: LSP_CONTRACT_LENS_HANDLER)</div>
+                    <div class="description">Set the contract lens handler for flat contract views in hover.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">set_eifgens_loaded (a_loaded: BOOLEAN)</div>
+                    <div class="description">Set whether EIFGENs metadata has been loaded (enables enhanced features).</div>
+                </div>
+
+                <h4>Operations</h4>
+                <div class="api-feature">
+                    <div class="signature">get_hover_info (a_word: STRING): detachable SIMPLE_JSON_OBJECT</div>
+                    <div class="description">Get hover information for a word. Returns LSP Hover object with markdown content including:
+                        class/feature documentation, type aliases, inheritance chain, feature origin, flat contracts,
+                        clients/suppliers lists.</div>
+                    <div class="contract">
+                        <strong>require</strong> word_not_empty: not a_word.is_empty
+                    </div>
+                </div>
+            </div>
+
+            <!-- LSP_COMPLETION_HANDLER -->
+            <div class="api-class" id="lsp-completion-handler">
+                <h3>LSP_COMPLETION_HANDLER</h3>
+                <p>Handler for LSP code completion. Provides class names, feature names, and keywords.</p>
+
+                <h4>Creation</h4>
+                <div class="api-feature">
+                    <div class="signature">make (a_db: LSP_SYMBOL_DATABASE; a_logger: LSP_LOGGER)</div>
+                    <div class="description">Create handler with database and logger.</div>
+                </div>
+
+                <h4>Operations</h4>
+                <div class="api-feature">
+                    <div class="signature">get_completions (a_prefix: STRING): SIMPLE_JSON_ARRAY</div>
+                    <div class="description">Get completion items for a prefix. Returns array of LSP CompletionItem objects
+                        including classes, features, and Eiffel keywords.</div>
+                </div>
+            </div>
+
+            <!-- LSP_RENAME_HANDLER -->
+            <div class="api-class" id="lsp-rename-handler">
+                <h3>LSP_RENAME_HANDLER</h3>
+                <p>Handler for LSP rename operations. Safely renames symbols across the workspace.</p>
+
+                <h4>Creation</h4>
+                <div class="api-feature">
+                    <div class="signature">make (a_db: LSP_SYMBOL_DATABASE; a_logger: LSP_LOGGER)</div>
+                    <div class="description">Create handler with database and logger.</div>
+                </div>
+
+                <h4>Operations</h4>
+                <div class="api-feature">
+                    <div class="signature">prepare_rename (a_name: STRING): detachable SIMPLE_JSON_OBJECT</div>
+                    <div class="description">Check if rename is valid for the symbol. Returns range if valid, Void if not.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">rename_symbol (a_old_name, a_new_name: STRING): SIMPLE_JSON_OBJECT</div>
+                    <div class="description">Generate WorkspaceEdit to rename all occurrences of a symbol.</div>
+                    <div class="contract">
+                        <strong>require</strong> old_not_empty: not a_old_name.is_empty<br>
+                        <strong>require</strong> new_not_empty: not a_new_name.is_empty
+                    </div>
+                </div>
+            </div>
+
+            <!-- LSP_CONTRACT_LENS_HANDLER -->
+            <div class="api-class" id="lsp-contract-lens-handler">
+                <h3>LSP_CONTRACT_LENS_HANDLER</h3>
+                <p>Handler for Contract Lens feature. Shows flat contract view with inheritance attribution.</p>
+
+                <h4>Creation</h4>
+                <div class="api-feature">
+                    <div class="signature">make (a_db: LSP_SYMBOL_DATABASE; a_logger: LSP_LOGGER; a_eifgens_parser: EIFGENS_METADATA_PARSER)</div>
+                    <div class="description">Create handler with database, logger, and EIFGENs parser.</div>
+                </div>
+
+                <h4>Operations</h4>
+                <div class="api-feature">
+                    <div class="signature">get_flat_contracts (a_class_name, a_feature_name: STRING): STRING</div>
+                    <div class="description">Get flat contract view for a feature with inheritance attribution.
+                        Returns markdown formatted string showing all preconditions and postconditions
+                        from the entire inheritance chain, with origin class for each clause.</div>
+                    <div class="contract">
+                        <strong>require</strong> class_name_not_empty: not a_class_name.is_empty<br>
+                        <strong>require</strong> feature_name_not_empty: not a_feature_name.is_empty<br>
+                        <strong>ensure</strong> result_not_void: Result /= Void
+                    </div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">get_feature_origin (a_class_name, a_feature_name: STRING): detachable STRING</div>
+                    <div class="description">Find which ancestor class originally defined a feature.
+                        Walks the inheritance chain from root to leaf to find first definition.</div>
+                </div>
+            </div>
+
+            <!-- LSP_CALL_HIERARCHY_HANDLER -->
+            <div class="api-class" id="lsp-call-hierarchy-handler">
+                <h3>LSP_CALL_HIERARCHY_HANDLER</h3>
+                <p>Handler for LSP call hierarchy. Shows who calls a feature and what a feature calls.</p>
+
+                <h4>Creation</h4>
+                <div class="api-feature">
+                    <div class="signature">make (a_db: LSP_SYMBOL_DATABASE; a_logger: LSP_LOGGER)</div>
+                    <div class="description">Create handler with database and logger.</div>
+                </div>
+
+                <h4>Operations</h4>
+                <div class="api-feature">
+                    <div class="signature">prepare_call_hierarchy (a_class_name, a_feature_name: STRING): SIMPLE_JSON_ARRAY</div>
+                    <div class="description">Prepare call hierarchy items for a feature. Returns array of CallHierarchyItem.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">get_incoming_calls (a_class_name, a_feature_name: STRING): SIMPLE_JSON_ARRAY</div>
+                    <div class="description">Get incoming calls (who calls this feature). Returns array of CallHierarchyIncomingCall.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">get_outgoing_calls (a_class_name, a_feature_name: STRING): SIMPLE_JSON_ARRAY</div>
+                    <div class="description">Get outgoing calls (what this feature calls). Returns array of CallHierarchyOutgoingCall.</div>
+                </div>
+            </div>
+
+            <!-- LSP_TYPE_HIERARCHY_HANDLER -->
+            <div class="api-class" id="lsp-type-hierarchy-handler">
+                <h3>LSP_TYPE_HIERARCHY_HANDLER</h3>
+                <p>Handler for LSP type hierarchy. Shows inheritance tree (ancestors and descendants).</p>
+
+                <h4>Creation</h4>
+                <div class="api-feature">
+                    <div class="signature">make (a_db: LSP_SYMBOL_DATABASE; a_logger: LSP_LOGGER; a_eifgens_parser: EIFGENS_METADATA_PARSER)</div>
+                    <div class="description">Create handler with database, logger, and EIFGENs parser for complete inheritance info.</div>
+                </div>
+
+                <h4>Operations</h4>
+                <div class="api-feature">
+                    <div class="signature">prepare_type_hierarchy (a_class_name: STRING): SIMPLE_JSON_ARRAY</div>
+                    <div class="description">Prepare type hierarchy item for a class. Returns array of TypeHierarchyItem.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">get_supertypes (a_class_name: STRING): SIMPLE_JSON_ARRAY</div>
+                    <div class="description">Get supertypes (ancestor classes). Returns array of TypeHierarchyItem.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">get_subtypes (a_class_name: STRING): SIMPLE_JSON_ARRAY</div>
+                    <div class="description">Get subtypes (descendant classes). Returns array of TypeHierarchyItem.</div>
+                </div>
+            </div>
+
+            <!-- LSP_IMPLEMENTATION_HANDLER -->
+            <div class="api-class" id="lsp-implementation-handler">
+                <h3>LSP_IMPLEMENTATION_HANDLER</h3>
+                <p>Handler for Go to Implementation. Finds concrete implementations of deferred features.</p>
+
+                <h4>Creation</h4>
+                <div class="api-feature">
+                    <div class="signature">make (a_db: LSP_SYMBOL_DATABASE; a_logger: LSP_LOGGER; a_eifgens_parser: EIFGENS_METADATA_PARSER)</div>
+                    <div class="description">Create handler with database, logger, and EIFGENs parser.</div>
+                </div>
+
+                <h4>Operations</h4>
+                <div class="api-feature">
+                    <div class="signature">get_implementations (a_class_name, a_feature_name: STRING): SIMPLE_JSON_ARRAY</div>
+                    <div class="description">Get implementations of a (potentially deferred) feature.
+                        Returns array of LSP Location objects pointing to concrete implementations in descendant classes.</div>
+                </div>
+            </div>
+
+            <!-- LSP_TEST_RUNNER_HANDLER -->
+            <div class="api-class" id="lsp-test-runner-handler">
+                <h3>LSP_TEST_RUNNER_HANDLER</h3>
+                <p>Handler for test discovery and execution. Discovers EQA test classes and test methods.</p>
+
+                <h4>Creation</h4>
+                <div class="api-feature">
+                    <div class="signature">make (a_db: LSP_SYMBOL_DATABASE; a_logger: LSP_LOGGER; a_workspace_root: STRING)</div>
+                    <div class="description">Create handler with database, logger, and workspace root for test execution.</div>
+                </div>
+
+                <h4>Operations</h4>
+                <div class="api-feature">
+                    <div class="signature">discover_tests: SIMPLE_JSON_ARRAY</div>
+                    <div class="description">Discover all test classes and test methods in the workspace.
+                        Returns hierarchical array: test classes containing test methods.
+                        Test classes inherit from EQA_TEST_SET or TEST_SET.
+                        Test methods have names starting with "test_".</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">run_test (a_class_name, a_test_name: STRING): SIMPLE_JSON_OBJECT</div>
+                    <div class="description">Run a single test method. Returns result object with passed/failed status and output.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">run_all_tests: SIMPLE_JSON_ARRAY</div>
+                    <div class="description">Run all discovered tests. Returns array of test results.</div>
+                </div>
+            </div>
+
+            <!-- LSP_LOGGER -->
+            <div class="api-class" id="lsp-logger">
+                <h3>LSP_LOGGER</h3>
+                <p>Logging utility for debugging the LSP server. Writes to .eiffel_lsp/lsp.log.</p>
+
+                <h4>Creation</h4>
+                <div class="api-feature">
+                    <div class="signature">make (a_log_path: STRING)</div>
+                    <div class="description">Create logger writing to the given file path.</div>
+                </div>
+
+                <h4>Operations</h4>
+                <div class="api-feature">
+                    <div class="signature">log_info (a_message: STRING)</div>
+                    <div class="description">Log an informational message with timestamp.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">log_debug (a_message: STRING)</div>
+                    <div class="description">Log a debug message with timestamp.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">log_warning (a_message: STRING)</div>
+                    <div class="description">Log a warning message with timestamp.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">log_error (a_message: STRING)</div>
+                    <div class="description">Log an error message with timestamp.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">close</div>
+                    <div class="description">Close the log file.</div>
+                </div>
+            </div>
+
+            <!-- LSP_MESSAGE -->
+            <div class="api-class" id="lsp-message">
+                <h3>LSP_MESSAGE</h3>
+                <p>JSON-RPC message wrapper. Parses and represents incoming LSP messages.</p>
+
+                <h4>Creation</h4>
+                <div class="api-feature">
+                    <div class="signature">make_from_json (a_json: SIMPLE_JSON_OBJECT)</div>
+                    <div class="description">Create message from parsed JSON object.</div>
+                </div>
+
+                <h4>Access</h4>
+                <div class="api-feature">
+                    <div class="signature">id: INTEGER</div>
+                    <div class="description">Message ID (for requests that expect responses). 0 for notifications.</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">method: STRING</div>
+                    <div class="description">LSP method name (e.g., "textDocument/definition").</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">params: detachable SIMPLE_JSON_OBJECT</div>
+                    <div class="description">Method parameters (may be Void for methods with no parameters).</div>
+                </div>
+
+                <h4>Status</h4>
+                <div class="api-feature">
+                    <div class="signature">is_request: BOOLEAN</div>
+                    <div class="description">Is this a request (has ID, expects response)?</div>
+                </div>
+                <div class="api-feature">
+                    <div class="signature">is_notification: BOOLEAN</div>
+                    <div class="description">Is this a notification (no ID, no response expected)?</div>
+                </div>
+            </div>
+        </section>
+
+        <section id="custom-lsp-methods">
+            <h2>Custom LSP Methods</h2>
+            <p>simple_lsp implements several custom methods for Eiffel-specific features:</p>
+
+            <h3>eiffel/dbcMetrics</h3>
+            <p>Get Design by Contract metrics for the workspace.</p>
+            <pre><code>// Request
+{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "eiffel/dbcMetrics",
+    "params": {}
+}
+
+// Response
+{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+        "totalClasses": 42,
+        "totalFeatures": 350,
+        "featuresWithRequire": 280,
+        "featuresWithEnsure": 245,
+        "classesWithInvariant": 38,
+        "dbcScore": 85
+    }
+}</code></pre>
+
+            <h3>eiffel/discoverTests</h3>
+            <p>Discover all test classes and methods.</p>
+            <pre><code>// Request
+{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "eiffel/discoverTests",
+    "params": {}
+}
+
+// Response
+{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": [
+        {
+            "className": "MY_TEST_SET",
+            "filePath": "/path/to/my_test_set.e",
+            "tests": [
+                { "name": "test_basic_operation", "line": 25 },
+                { "name": "test_edge_cases", "line": 42 }
+            ]
+        }
+    ]
+}</code></pre>
+
+            <h3>eiffel/runTest</h3>
+            <p>Run a single test method.</p>
+            <pre><code>// Request
+{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "eiffel/runTest",
+    "params": {
+        "className": "MY_TEST_SET",
+        "testName": "test_basic_operation"
+    }
+}
+
+// Response
+{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+        "passed": true,
+        "output": "Test passed in 0.05s",
+        "duration": 50
+    }
+}</code></pre>
+
+            <h3>eiffel/runAllTests</h3>
+            <p>Run all discovered tests.</p>
+            <pre><code>// Request
+{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "eiffel/runAllTests",
+    "params": {}
+}
+
+// Response
+{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+        "total": 25,
+        "passed": 24,
+        "failed": 1,
+        "results": [...]
+    }
+}</code></pre>
+        </section>
+
+        <section id="database-schema">
+            <h2>Database Schema</h2>
+            <p>LSP_SYMBOL_DATABASE uses SQLite with the following schema:</p>
+            <pre><code>-- Classes table
+CREATE TABLE classes (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    file_path TEXT NOT NULL,
+    line INTEGER NOT NULL,
+    column INTEGER NOT NULL,
+    is_deferred INTEGER DEFAULT 0,
+    is_expanded INTEGER DEFAULT 0,
+    is_frozen INTEGER DEFAULT 0,
+    header_comment TEXT,
+    file_mtime INTEGER NOT NULL DEFAULT 0
+);
+
+-- Features table
+CREATE TABLE features (
+    id INTEGER PRIMARY KEY,
+    class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    kind TEXT NOT NULL,  -- 'function', 'procedure', 'attribute'
+    line INTEGER NOT NULL,
+    column INTEGER NOT NULL,
+    return_type TEXT,
+    signature TEXT,
+    precondition TEXT,
+    postcondition TEXT,
+    header_comment TEXT,
+    is_deferred INTEGER DEFAULT 0,
+    is_frozen INTEGER DEFAULT 0,
+    export_status TEXT DEFAULT 'ANY'
+);
+
+-- Inheritance table
+CREATE TABLE inheritance (
+    id INTEGER PRIMARY KEY,
+    child_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+    parent_name TEXT NOT NULL,
+    parent_id INTEGER REFERENCES classes(id),
+    rename_clause TEXT,
+    redefine_list TEXT,
+    undefine_list TEXT,
+    select_list TEXT
+);
+
+-- Type references (client/supplier)
+CREATE TABLE type_references (
+    id INTEGER PRIMARY KEY,
+    from_class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+    to_type_name TEXT NOT NULL,
+    context TEXT NOT NULL,  -- 'attribute', 'local', 'argument', 'return', 'creation', 'inherit'
+    UNIQUE(from_class_id, to_type_name, context)
+);
+
+-- Parse errors
+CREATE TABLE parse_errors (
+    id INTEGER PRIMARY KEY,
+    file_path TEXT NOT NULL,
+    line INTEGER NOT NULL,
+    column INTEGER NOT NULL,
+    message TEXT NOT NULL,
+    severity TEXT DEFAULT 'error'
+);</code></pre>
+        </section>
+
+        <section id="extending">
+            <h2>Extending simple_lsp</h2>
+            <p>To add new functionality to simple_lsp:</p>
+
+            <h3>Adding a New Handler</h3>
+            <ol>
+                <li>Create a new class inheriting from ANY (e.g., <code>LSP_MY_HANDLER</code>)</li>
+                <li>Follow the existing handler pattern with make, Access features, and Operations</li>
+                <li>Add the handler attribute to LSP_SERVER</li>
+                <li>Instantiate in LSP_SERVER.make</li>
+                <li>Add dispatch case in LSP_SERVER.dispatch_message</li>
+                <li>Declare the capability in handle_initialize</li>
+            </ol>
+
+            <h3>Handler Template</h3>
+            <pre><code>class
+    LSP_MY_HANDLER
+
+create
+    make
+
+feature {NONE} -- Initialization
+
+    make (a_db: LSP_SYMBOL_DATABASE; a_logger: LSP_LOGGER)
+            -- Create handler
+        require
+            db_not_void: a_db /= Void
+            logger_not_void: a_logger /= Void
+        do
+            symbol_db := a_db
+            logger := a_logger
+        ensure
+            db_set: symbol_db = a_db
+            logger_set: logger = a_logger
+        end
+
+feature -- Access
+
+    symbol_db: LSP_SYMBOL_DATABASE
+    logger: LSP_LOGGER
+
+feature -- Operations
+
+    my_operation (a_param: STRING): SIMPLE_JSON_OBJECT
+            -- Perform the operation
+        require
+            param_valid: a_param /= Void and then not a_param.is_empty
+        do
+            create Result.make
+            -- Implementation here
+            log_debug ("my_operation called with: " + a_param)
+        ensure
+            result_not_void: Result /= Void
+        end
+
+feature {NONE} -- Implementation
+
+    log_debug (a_msg: STRING)
+        do
+            logger.log_debug ("[MY_HANDLER] " + a_msg)
+        end
+
+end</code></pre>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 simple_* ecosystem. MIT License.</p>
+        <p>
+            <a href="https://github.com/simple-eiffel/simple_lsp">GitHub</a> |
+            <a href="index.html">Home</a> |
+            <a href="user-guide.html">User Guide</a> |
+            <a href="architecture.html">Architecture</a>
+        </p>
+    </footer>
+</body>
+</html>

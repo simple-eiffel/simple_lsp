@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Guide - simple_lsp</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/png" href="images/logo.png">
+    <style>
+        .use-case { background: #f8f9fa; border-left: 4px solid #007acc; padding: 1rem; margin: 1rem 0; }
+        .use-case h4 { margin-top: 0; color: #007acc; }
+        .steps { counter-reset: step; }
+        .steps li { counter-increment: step; margin: 0.5rem 0; }
+        .steps li::marker { content: "Step " counter(step) ": "; font-weight: bold; color: #007acc; }
+        .screenshot { border: 1px solid #ddd; border-radius: 4px; margin: 1rem 0; max-width: 100%; }
+        .tip { background: #e7f3ff; border-left: 4px solid #007acc; padding: 0.75rem; margin: 1rem 0; }
+        .tip::before { content: "Tip: "; font-weight: bold; }
+        .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 0.75rem; margin: 1rem 0; }
+        .warning::before { content: "Note: "; font-weight: bold; }
+        kbd { background: #eee; border: 1px solid #ccc; border-radius: 3px; padding: 2px 6px; font-family: monospace; }
+        .feature-section { margin: 2rem 0; padding-bottom: 2rem; border-bottom: 1px solid #eee; }
+        .feature-section:last-child { border-bottom: none; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>simple_lsp User Guide</h1>
+        <p class="tagline">Complete guide to using Eiffel LSP in Visual Studio Code</p>
+        <nav>
+            <a href="index.html">Home</a> |
+            <a href="api-reference.html">API Reference</a> |
+            <a href="architecture.html">Architecture</a>
+        </nav>
+    </header>
+
+    <main>
+        <section id="toc">
+            <h2>Table of Contents</h2>
+            <ol>
+                <li><a href="#getting-started">Getting Started</a></li>
+                <li><a href="#navigation">Navigation Features</a>
+                    <ul>
+                        <li><a href="#go-to-definition">Go to Definition</a></li>
+                        <li><a href="#find-references">Find References</a></li>
+                        <li><a href="#go-to-implementation">Go to Implementation</a></li>
+                        <li><a href="#document-symbols">Document Symbols</a></li>
+                        <li><a href="#workspace-symbols">Workspace Symbols</a></li>
+                    </ul>
+                </li>
+                <li><a href="#intelligence">Code Intelligence</a>
+                    <ul>
+                        <li><a href="#hover">Hover Information</a></li>
+                        <li><a href="#completion">Code Completion</a></li>
+                        <li><a href="#signature-help">Signature Help</a></li>
+                    </ul>
+                </li>
+                <li><a href="#hierarchy">Hierarchy Views</a>
+                    <ul>
+                        <li><a href="#call-hierarchy">Call Hierarchy</a></li>
+                        <li><a href="#type-hierarchy">Type Hierarchy</a></li>
+                    </ul>
+                </li>
+                <li><a href="#refactoring">Refactoring</a>
+                    <ul>
+                        <li><a href="#rename">Rename Symbol</a></li>
+                    </ul>
+                </li>
+                <li><a href="#eiffel-specific">Eiffel-Specific Features</a>
+                    <ul>
+                        <li><a href="#contracts">Contract Lens</a></li>
+                        <li><a href="#feature-origin">Feature Origin</a></li>
+                        <li><a href="#inheritance">Inheritance Chain</a></li>
+                    </ul>
+                </li>
+                <li><a href="#configuration">Configuration</a>
+                    <ul>
+                        <li><a href="#ucf">Universe Configuration (UCF)</a></li>
+                        <li><a href="#settings">VS Code Settings</a></li>
+                    </ul>
+                </li>
+            </ol>
+        </section>
+
+        <!-- GETTING STARTED -->
+        <section id="getting-started" class="feature-section">
+            <h2>1. Getting Started</h2>
+
+            <h3>Installation</h3>
+            <p>Install simple_lsp using one of these methods:</p>
+
+            <h4>Option A: Windows Installer (Recommended)</h4>
+            <ol class="steps">
+                <li>Download <code>simple_lsp_setup_0.8.0.exe</code> from the <a href="https://github.com/simple-eiffel/simple_lsp/releases">releases page</a></li>
+                <li>Run the installer and follow the prompts</li>
+                <li>The installer sets up environment variables and installs the VS Code extension automatically</li>
+            </ol>
+
+            <h4>Option B: Manual Installation</h4>
+            <ol class="steps">
+                <li>Download and extract the release archive</li>
+                <li>Copy <code>simple_lsp.exe</code> to a permanent location (e.g., <code>C:\tools\simple_lsp</code>)</li>
+                <li>Set the <code>SIMPLE_LSP</code> environment variable to point to that directory</li>
+                <li>Install the VS Code extension: <code>code --install-extension eiffel-lsp-0.8.0.vsix</code></li>
+            </ol>
+
+            <h3>First Use</h3>
+            <ol class="steps">
+                <li>Open VS Code</li>
+                <li>Open a folder containing <code>.e</code> (Eiffel) files</li>
+                <li>Open any <code>.e</code> file - the LSP server starts automatically</li>
+                <li>Wait a few seconds for indexing to complete (check the status bar)</li>
+            </ol>
+
+            <div class="tip">
+                The first time you open a workspace, simple_lsp creates a <code>.eiffel_lsp</code> folder containing
+                the symbol database (<code>symbols.db</code>) and log file (<code>lsp.log</code>).
+            </div>
+        </section>
+
+        <!-- NAVIGATION -->
+        <section id="navigation" class="feature-section">
+            <h2>2. Navigation Features</h2>
+
+            <article id="go-to-definition">
+                <h3>Go to Definition</h3>
+                <p><strong>Keyboard:</strong> <kbd>F12</kbd> or <kbd>Ctrl+Click</kbd></p>
+                <p>Jump directly to where a class or feature is defined.</p>
+
+                <div class="use-case">
+                    <h4>Use Case: Understanding unfamiliar code</h4>
+                    <p><strong>Scenario:</strong> You're reading code that calls <code>json_object.put_string</code> and want to understand what this feature does.</p>
+                    <ol class="steps">
+                        <li>Place your cursor on <code>put_string</code></li>
+                        <li>Press <kbd>F12</kbd> (or <kbd>Ctrl+Click</kbd>)</li>
+                        <li>VS Code jumps to the definition in <code>simple_json_object.e</code></li>
+                        <li>Read the feature's contracts and implementation</li>
+                    </ol>
+                </div>
+
+                <div class="use-case">
+                    <h4>Use Case: Navigating to a class</h4>
+                    <p><strong>Scenario:</strong> You see a type declaration <code>result: SIMPLE_JSON_ARRAY</code> and want to explore the class.</p>
+                    <ol class="steps">
+                        <li>Place your cursor on <code>SIMPLE_JSON_ARRAY</code></li>
+                        <li>Press <kbd>F12</kbd></li>
+                        <li>VS Code opens <code>simple_json_array.e</code> at the class declaration</li>
+                    </ol>
+                </div>
+
+                <div class="tip">
+                    Works across libraries when you have a <a href="#ucf">Universe Configuration File</a> set up.
+                </div>
+            </article>
+
+            <article id="find-references">
+                <h3>Find References</h3>
+                <p><strong>Keyboard:</strong> <kbd>Shift+F12</kbd></p>
+                <p>Find all places where a class or feature is used.</p>
+
+                <div class="use-case">
+                    <h4>Use Case: Impact analysis before refactoring</h4>
+                    <p><strong>Scenario:</strong> You want to change a feature's signature and need to know what will break.</p>
+                    <ol class="steps">
+                        <li>Place your cursor on the feature name (e.g., <code>calculate_total</code>)</li>
+                        <li>Press <kbd>Shift+F12</kbd></li>
+                        <li>The References panel shows all call sites</li>
+                        <li>Click any reference to navigate to that location</li>
+                        <li>Plan your changes based on the impact</li>
+                    </ol>
+                </div>
+
+                <div class="use-case">
+                    <h4>Use Case: Finding all usages of a class</h4>
+                    <p><strong>Scenario:</strong> You want to see everywhere <code>SIMPLE_JSON_OBJECT</code> is used.</p>
+                    <ol class="steps">
+                        <li>Place your cursor on <code>SIMPLE_JSON_OBJECT</code> in any file</li>
+                        <li>Press <kbd>Shift+F12</kbd></li>
+                        <li>See all variable declarations, feature parameters, and inheritance relationships</li>
+                    </ol>
+                </div>
+            </article>
+
+            <article id="go-to-implementation">
+                <h3>Go to Implementation</h3>
+                <p><strong>Keyboard:</strong> <kbd>Ctrl+F12</kbd></p>
+                <p>Jump from a deferred (abstract) feature to its concrete implementations.</p>
+
+                <div class="use-case">
+                    <h4>Use Case: Finding concrete implementations of an interface</h4>
+                    <p><strong>Scenario:</strong> You have a deferred class <code>DATABASE_CONNECTION</code> with a deferred feature <code>execute_query</code>. You want to see all implementations.</p>
+                    <ol class="steps">
+                        <li>Open the deferred class file</li>
+                        <li>Place your cursor on the deferred feature <code>execute_query</code></li>
+                        <li>Press <kbd>Ctrl+F12</kbd></li>
+                        <li>VS Code shows all classes that implement this feature (e.g., <code>SQLITE_CONNECTION</code>, <code>POSTGRES_CONNECTION</code>)</li>
+                        <li>Click to navigate to any implementation</li>
+                    </ol>
+                </div>
+
+                <div class="warning">
+                    This feature requires compiled EIFGENs metadata for complete inheritance information.
+                </div>
+            </article>
+
+            <article id="document-symbols">
+                <h3>Document Symbols (Outline)</h3>
+                <p><strong>Keyboard:</strong> <kbd>Ctrl+Shift+O</kbd></p>
+                <p>See a structured outline of all features in the current file.</p>
+
+                <div class="use-case">
+                    <h4>Use Case: Navigating a large class</h4>
+                    <p><strong>Scenario:</strong> You're working with a 500-line class and need to find a specific feature.</p>
+                    <ol class="steps">
+                        <li>Press <kbd>Ctrl+Shift+O</kbd></li>
+                        <li>Type part of the feature name to filter</li>
+                        <li>Press <kbd>Enter</kbd> to jump to that feature</li>
+                    </ol>
+                </div>
+
+                <div class="tip">
+                    You can also view the outline in VS Code's Outline panel (View > Open View > Outline).
+                </div>
+            </article>
+
+            <article id="workspace-symbols">
+                <h3>Workspace Symbols</h3>
+                <p><strong>Keyboard:</strong> <kbd>Ctrl+T</kbd></p>
+                <p>Search for any class or feature across your entire workspace.</p>
+
+                <div class="use-case">
+                    <h4>Use Case: Finding a class by name</h4>
+                    <p><strong>Scenario:</strong> You remember a class called something like "validator" but don't know the exact name or file.</p>
+                    <ol class="steps">
+                        <li>Press <kbd>Ctrl+T</kbd></li>
+                        <li>Type <code>valid</code></li>
+                        <li>See all matching classes and features: <code>SIMPLE_VALIDATOR</code>, <code>VALIDATION_RESULT</code>, <code>is_valid</code>, etc.</li>
+                        <li>Select the one you want to navigate there</li>
+                    </ol>
+                </div>
+            </article>
+        </section>
+
+        <!-- CODE INTELLIGENCE -->
+        <section id="intelligence" class="feature-section">
+            <h2>3. Code Intelligence</h2>
+
+            <article id="hover">
+                <h3>Hover Information</h3>
+                <p><strong>Action:</strong> Move your mouse cursor over any identifier</p>
+                <p>Get rich documentation including signatures, comments, contracts, and inheritance information.</p>
+
+                <h4>What you see when hovering:</h4>
+                <ul>
+                    <li><strong>For classes:</strong> Class type (workspace/compiled), inheritance chain, suppliers, clients</li>
+                    <li><strong>For features:</strong> Signature, comment, origin class, flat contracts</li>
+                    <li><strong>For type aliases:</strong> Resolved type (e.g., INTEGER shows as INTEGER_32)</li>
+                </ul>
+
+                <div class="use-case">
+                    <h4>Use Case: Understanding inherited contracts</h4>
+                    <p><strong>Scenario:</strong> You're calling a feature and want to know all the preconditions you must satisfy.</p>
+                    <ol class="steps">
+                        <li>Hover over the feature call</li>
+                        <li>Read the "Flat Contracts" section showing all preconditions from the entire inheritance chain</li>
+                        <li>Each contract shows which ancestor class defined it</li>
+                    </ol>
+                </div>
+
+                <div class="use-case">
+                    <h4>Use Case: Checking who uses a class</h4>
+                    <p><strong>Scenario:</strong> You want to know which classes depend on <code>SIMPLE_LOGGER</code>.</p>
+                    <ol class="steps">
+                        <li>Hover over <code>SIMPLE_LOGGER</code></li>
+                        <li>Read the "Clients" list showing all classes that use this type</li>
+                    </ol>
+                </div>
+            </article>
+
+            <article id="completion">
+                <h3>Code Completion</h3>
+                <p><strong>Keyboard:</strong> <kbd>Ctrl+Space</kbd> (or type to trigger automatically)</p>
+                <p>Get intelligent suggestions for class names and features.</p>
+
+                <div class="use-case">
+                    <h4>Use Case: Discovering available features</h4>
+                    <p><strong>Scenario:</strong> You have a <code>SIMPLE_JSON_OBJECT</code> variable and want to see what you can do with it.</p>
+                    <ol class="steps">
+                        <li>Type the variable name followed by a dot: <code>my_json.</code></li>
+                        <li>Press <kbd>Ctrl+Space</kbd> if completion doesn't appear</li>
+                        <li>Browse the list of available features</li>
+                        <li>Select one to insert it</li>
+                    </ol>
+                </div>
+
+                <div class="use-case">
+                    <h4>Use Case: Creating a new variable</h4>
+                    <p><strong>Scenario:</strong> You need to declare a variable of type starting with "SIMPLE_".</p>
+                    <ol class="steps">
+                        <li>Type <code>l_var: SIMPLE_</code></li>
+                        <li>Completion shows all classes starting with SIMPLE_</li>
+                        <li>Select the type you need</li>
+                    </ol>
+                </div>
+            </article>
+
+            <article id="signature-help">
+                <h3>Signature Help</h3>
+                <p><strong>Trigger:</strong> Type <code>(</code> after a feature name</p>
+                <p>See parameter information while typing a feature call.</p>
+
+                <div class="use-case">
+                    <h4>Use Case: Remembering parameter order</h4>
+                    <p><strong>Scenario:</strong> You're calling <code>put_string</code> but can't remember the parameter order.</p>
+                    <ol class="steps">
+                        <li>Type <code>my_json.put_string(</code></li>
+                        <li>Signature help appears showing: <code>put_string (a_value: STRING; a_key: STRING)</code></li>
+                        <li>The current parameter is highlighted as you type</li>
+                    </ol>
+                </div>
+            </article>
+        </section>
+
+        <!-- HIERARCHY VIEWS -->
+        <section id="hierarchy" class="feature-section">
+            <h2>4. Hierarchy Views</h2>
+
+            <article id="call-hierarchy">
+                <h3>Call Hierarchy</h3>
+                <p><strong>Keyboard:</strong> <kbd>Ctrl+Shift+H</kbd> or right-click > "Show Call Hierarchy"</p>
+                <p>Explore who calls a feature and what features it calls.</p>
+
+                <h4>Two views:</h4>
+                <ul>
+                    <li><strong>Incoming Calls:</strong> Which features call this one? (callers)</li>
+                    <li><strong>Outgoing Calls:</strong> What features does this one call? (callees)</li>
+                </ul>
+
+                <div class="use-case">
+                    <h4>Use Case: Understanding code flow</h4>
+                    <p><strong>Scenario:</strong> A feature <code>process_payment</code> is failing. You need to understand all the ways it can be called.</p>
+                    <ol class="steps">
+                        <li>Place cursor on <code>process_payment</code></li>
+                        <li>Press <kbd>Ctrl+Shift+H</kbd></li>
+                        <li>Select "Show Incoming Calls"</li>
+                        <li>See the call tree: <code>checkout</code> > <code>finalize_order</code> > <code>process_payment</code></li>
+                        <li>Click any caller to navigate there</li>
+                    </ol>
+                </div>
+
+                <div class="use-case">
+                    <h4>Use Case: Analyzing dependencies</h4>
+                    <p><strong>Scenario:</strong> You want to know what a feature depends on before modifying it.</p>
+                    <ol class="steps">
+                        <li>Place cursor on the feature</li>
+                        <li>Open Call Hierarchy and select "Show Outgoing Calls"</li>
+                        <li>See all features it calls</li>
+                        <li>Expand to see their dependencies recursively</li>
+                    </ol>
+                </div>
+            </article>
+
+            <article id="type-hierarchy">
+                <h3>Type Hierarchy</h3>
+                <p><strong>Action:</strong> Right-click on a class name > "Show Type Hierarchy"</p>
+                <p>Visualize the inheritance tree for a class.</p>
+
+                <h4>Two directions:</h4>
+                <ul>
+                    <li><strong>Supertypes:</strong> What does this class inherit from? (ancestors)</li>
+                    <li><strong>Subtypes:</strong> What classes inherit from this? (descendants)</li>
+                </ul>
+
+                <div class="use-case">
+                    <h4>Use Case: Finding all implementations of a deferred class</h4>
+                    <p><strong>Scenario:</strong> You have a deferred class <code>SERIALIZABLE</code> and want to see all classes that implement it.</p>
+                    <ol class="steps">
+                        <li>Right-click on <code>SERIALIZABLE</code></li>
+                        <li>Select "Show Type Hierarchy"</li>
+                        <li>View "Subtypes" to see: <code>USER</code>, <code>ORDER</code>, <code>PRODUCT</code>, etc.</li>
+                    </ol>
+                </div>
+
+                <div class="use-case">
+                    <h4>Use Case: Understanding class lineage</h4>
+                    <p><strong>Scenario:</strong> You want to understand the full inheritance chain of <code>MY_CUSTOM_LIST</code>.</p>
+                    <ol class="steps">
+                        <li>Right-click on <code>MY_CUSTOM_LIST</code></li>
+                        <li>Select "Show Type Hierarchy"</li>
+                        <li>View "Supertypes" to see: <code>ARRAYED_LIST</code> > <code>LIST</code> > <code>CONTAINER</code> > <code>ANY</code></li>
+                    </ol>
+                </div>
+            </article>
+        </section>
+
+        <!-- REFACTORING -->
+        <section id="refactoring" class="feature-section">
+            <h2>5. Refactoring</h2>
+
+            <article id="rename">
+                <h3>Rename Symbol</h3>
+                <p><strong>Keyboard:</strong> <kbd>F2</kbd></p>
+                <p>Safely rename a feature or class across your entire workspace.</p>
+
+                <div class="use-case">
+                    <h4>Use Case: Renaming a feature</h4>
+                    <p><strong>Scenario:</strong> You want to rename <code>calc_total</code> to the more descriptive <code>calculate_order_total</code>.</p>
+                    <ol class="steps">
+                        <li>Place cursor on <code>calc_total</code></li>
+                        <li>Press <kbd>F2</kbd></li>
+                        <li>Type the new name: <code>calculate_order_total</code></li>
+                        <li>Press <kbd>Enter</kbd></li>
+                        <li>All references are updated across all files</li>
+                    </ol>
+                </div>
+
+                <div class="warning">
+                    Always compile after renaming to verify the changes. The LSP performs text-based renaming which
+                    handles most cases but may miss some edge cases in strings or comments.
+                </div>
+            </article>
+        </section>
+
+        <!-- EIFFEL-SPECIFIC FEATURES -->
+        <section id="eiffel-specific" class="feature-section">
+            <h2>6. Eiffel-Specific Features</h2>
+            <p>These features leverage Eiffel's unique Design by Contract capabilities.</p>
+
+            <article id="contracts">
+                <h3>Contract Lens (Flat Contract View)</h3>
+                <p><strong>Action:</strong> Hover over any feature</p>
+                <p>See all contracts (preconditions and postconditions) from the entire inheritance chain, with attribution showing which ancestor defined each contract.</p>
+
+                <h4>Example hover output:</h4>
+<pre><code>**make_deposit** *(from ACCOUNT)*
+
+```eiffel
+make_deposit (amount: REAL)
+```
+
+**Flat Contracts:**
+
+*Preconditions:*
+  - `amount > 0` ← *ACCOUNT*
+  - `not is_frozen` ← *BANK_ACCOUNT*
+
+*Postconditions:*
+  - `balance = old balance + amount` ← *ACCOUNT*
+  - `last_transaction_time = current_time` ← *AUDITED_ACCOUNT*
+</code></pre>
+
+                <div class="use-case">
+                    <h4>Use Case: Ensuring you meet all preconditions</h4>
+                    <p><strong>Scenario:</strong> You're calling an inherited feature and keep getting contract violations. You need to see ALL preconditions, including those from ancestors.</p>
+                    <ol class="steps">
+                        <li>Hover over the feature call</li>
+                        <li>Read the Flat Contracts section</li>
+                        <li>Check each precondition - note which class defined it</li>
+                        <li>Ensure your code satisfies all of them</li>
+                    </ol>
+                </div>
+            </article>
+
+            <article id="feature-origin">
+                <h3>Feature Origin</h3>
+                <p><strong>Action:</strong> Hover over any feature</p>
+                <p>See which ancestor class originally defined or last redefined a feature.</p>
+
+                <h4>Example:</h4>
+                <p>When hovering over <code>is_equal</code> in a custom class, you might see:</p>
+                <pre><code>**is_equal** *(from COMPARABLE)*</code></pre>
+
+                <div class="use-case">
+                    <h4>Use Case: Finding the original implementation</h4>
+                    <p><strong>Scenario:</strong> You're debugging a feature that behaves unexpectedly. You need to find where it was originally defined to understand its intended behavior.</p>
+                    <ol class="steps">
+                        <li>Hover over the feature</li>
+                        <li>Note the "(from CLASS_NAME)" indicator</li>
+                        <li>Use Go to Definition (<kbd>F12</kbd>) in that ancestor class to see the original</li>
+                    </ol>
+                </div>
+            </article>
+
+            <article id="inheritance">
+                <h3>Inheritance Chain Display</h3>
+                <p><strong>Action:</strong> Hover over any class name</p>
+                <p>See the full inheritance hierarchy from EIFGENs metadata.</p>
+
+                <h4>Example:</h4>
+                <pre><code>**class MY_CUSTOM_LIST** *(workspace)*
+
+*Inherits from: ARRAYED_LIST, LIST, CHAIN, CONTAINER, ANY*
+
+**Suppliers:** STRING, INTEGER, BOOLEAN
+**Clients:** ORDER_PROCESSOR, INVENTORY_MANAGER</code></pre>
+
+                <div class="use-case">
+                    <h4>Use Case: Understanding available inherited features</h4>
+                    <p><strong>Scenario:</strong> You're using a class and want to know what features it inherits.</p>
+                    <ol class="steps">
+                        <li>Hover over the class name</li>
+                        <li>Read the inheritance chain</li>
+                        <li>Use Go to Definition to explore any ancestor class</li>
+                    </ol>
+                </div>
+            </article>
+        </section>
+
+        <!-- CONFIGURATION -->
+        <section id="configuration" class="feature-section">
+            <h2>7. Configuration</h2>
+
+            <article id="ucf">
+                <h3>Universe Configuration File (UCF)</h3>
+                <p>For cross-library navigation, create a <code>universe.ucf</code> file in your workspace root.</p>
+
+                <h4>Example universe.ucf:</h4>
+<pre><code>{
+    "name": "my_project",
+    "version": "1.0.0",
+    "libraries": [
+        {
+            "name": "my_app",
+            "path": "${WORKSPACE}/src"
+        },
+        {
+            "name": "simple_json",
+            "path": "${SIMPLE_JSON}"
+        },
+        {
+            "name": "simple_sql",
+            "path": "${SIMPLE_SQL}"
+        },
+        {
+            "name": "base",
+            "path": "${ISE_LIBRARY}/library/base"
+        }
+    ]
+}</code></pre>
+
+                <h4>Variables:</h4>
+                <table>
+                    <tr><th>Variable</th><th>Description</th></tr>
+                    <tr><td><code>${WORKSPACE}</code></td><td>The workspace root (where VS Code opened)</td></tr>
+                    <tr><td><code>${ISE_LIBRARY}</code></td><td>EiffelStudio library path</td></tr>
+                    <tr><td><code>${ANY_ENV_VAR}</code></td><td>Any environment variable</td></tr>
+                </table>
+
+                <div class="use-case">
+                    <h4>Use Case: Setting up a multi-library project</h4>
+                    <p><strong>Scenario:</strong> Your project uses simple_json, simple_sql, and the Eiffel base library. You want Go to Definition to work across all of them.</p>
+                    <ol class="steps">
+                        <li>Create <code>universe.ucf</code> in your workspace root</li>
+                        <li>Add entries for each library with their paths</li>
+                        <li>Restart VS Code or reload the window</li>
+                        <li>Now <kbd>F12</kbd> works across all configured libraries</li>
+                    </ol>
+                </div>
+            </article>
+
+            <article id="settings">
+                <h3>VS Code Settings</h3>
+                <p>Configure simple_lsp in VS Code's settings (File > Preferences > Settings, search for "eiffel"):</p>
+
+                <table>
+                    <tr><th>Setting</th><th>Description</th><th>Default</th></tr>
+                    <tr>
+                        <td><code>eiffel.lsp.serverPath</code></td>
+                        <td>Path to simple_lsp.exe (supports env vars)</td>
+                        <td>Auto-detect from $SIMPLE_LSP</td>
+                    </tr>
+                    <tr>
+                        <td><code>eiffel.lsp.logLevel</code></td>
+                        <td>Log verbosity: error, warning, info, debug</td>
+                        <td>info</td>
+                    </tr>
+                    <tr>
+                        <td><code>eiffel.lsp.trace.server</code></td>
+                        <td>Trace LSP communication: off, messages, verbose</td>
+                        <td>off</td>
+                    </tr>
+                    <tr>
+                        <td><code>eiffel.compilerPath</code></td>
+                        <td>Path to EiffelStudio ec.exe</td>
+                        <td>Auto-detect from $ISE_EIFFEL</td>
+                    </tr>
+                </table>
+
+                <h4>Example settings.json:</h4>
+<pre><code>{
+    "eiffel.lsp.serverPath": "C:/tools/simple_lsp/simple_lsp.exe",
+    "eiffel.lsp.logLevel": "debug",
+    "eiffel.compilerPath": "C:/Eiffel/EiffelStudio/studio/spec/win64/bin/ec.exe"
+}</code></pre>
+            </article>
+        </section>
+
+        <!-- TROUBLESHOOTING -->
+        <section id="troubleshooting" class="feature-section">
+            <h2>8. Troubleshooting</h2>
+
+            <h3>LSP not starting</h3>
+            <ul>
+                <li>Check the Output panel (View > Output) and select "Eiffel LSP" from the dropdown</li>
+                <li>Verify <code>SIMPLE_LSP</code> environment variable is set</li>
+                <li>Verify <code>simple_lsp.exe</code> exists at the configured path</li>
+            </ul>
+
+            <h3>Features not working / incomplete results</h3>
+            <ul>
+                <li>Check <code>.eiffel_lsp/lsp.log</code> in your workspace for errors</li>
+                <li>Delete <code>.eiffel_lsp/symbols.db</code> to force re-indexing</li>
+                <li>Compile your project to generate EIFGENs metadata (needed for inheritance info)</li>
+            </ul>
+
+            <h3>Cross-library navigation not working</h3>
+            <ul>
+                <li>Create a <code>universe.ucf</code> file (see <a href="#ucf">UCF Configuration</a>)</li>
+                <li>Verify environment variables in your UCF are set correctly</li>
+                <li>Check that library paths exist on disk</li>
+            </ul>
+
+            <h3>Slow indexing</h3>
+            <ul>
+                <li>Large workspaces take longer on first open</li>
+                <li>Subsequent opens use cached data from <code>symbols.db</code></li>
+                <li>Consider limiting UCF to only needed libraries</li>
+            </ul>
+        </section>
+
+    </main>
+
+    <footer>
+        <p>&copy; 2025 simple_* ecosystem. MIT License.</p>
+        <p><a href="index.html">Home</a> | <a href="api-reference.html">API Reference</a> | <a href="architecture.html">Architecture</a></p>
+    </footer>
+</body>
+</html>

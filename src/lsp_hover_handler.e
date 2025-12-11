@@ -29,6 +29,21 @@ feature {NONE} -- Initialization
 			eifgens_parser_set: eifgens_parser = a_eifgens_parser
 		end
 
+feature -- Contract Lens Integration
+
+	set_contract_lens_handler (a_handler: LSP_CONTRACT_LENS_HANDLER)
+			-- Set contract lens handler for flat contract views
+		require
+			handler_not_void: a_handler /= Void
+		do
+			contract_lens_handler := a_handler
+		ensure
+			handler_set: contract_lens_handler = a_handler
+		end
+
+	contract_lens_handler: detachable LSP_CONTRACT_LENS_HANDLER
+			-- Contract lens handler for flat contract views
+
 feature -- Access
 
 	symbol_db: LSP_SYMBOL_DATABASE
@@ -127,11 +142,23 @@ feature -- Operations
 					l_feature_info := symbol_db.find_feature (class_name, a_word)
 					if attached l_feature_info then
 						create l_content.make_from_string ("**" + a_word + "**")
+						-- Add feature origin info
+						if attached contract_lens_handler as clh then
+							if attached clh.get_feature_origin (class_name, a_word) as origin then
+								if not origin.same_string (class_name) then
+									l_content.append (" *(from " + origin + ")*")
+								end
+							end
+						end
 						if attached l_feature_info.signature as sig and then not sig.is_empty then
 							l_content.append ("%N%N```eiffel%N" + sig + "%N```")
 						end
 						if attached l_feature_info.comment as cmt and then not cmt.is_empty then
 							l_content.append ("%N%N" + cmt)
+						end
+						-- Add flat contracts
+						if attached contract_lens_handler as clh then
+							l_content.append (clh.get_flat_contracts (class_name, a_word))
 						end
 						create Result.make
 						create l_contents.make

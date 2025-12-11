@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>simple_lsp Architecture</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/png" href="images/logo.png">
+    <style>
+        .diagram {
+            background: #0f0f23;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            font-family: monospace;
+            white-space: pre;
+            overflow-x: auto;
+            line-height: 1.4;
+            color: #4ecdc4;
+        }
+        .diagram .highlight {
+            color: #ff6b35;
+        }
+        .diagram .dim {
+            color: #666;
+        }
+        .component-card {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .component-card h4 {
+            color: #ff6b35;
+            margin-top: 0;
+            border-bottom: 1px solid #333;
+            padding-bottom: 0.5rem;
+        }
+        .component-card .deps {
+            color: #888;
+            font-size: 0.9em;
+        }
+        .flow-section {
+            background: #16213e;
+            border-left: 3px solid #ff6b35;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        .file-tree {
+            background: #0f0f23;
+            padding: 1rem;
+            border-radius: 4px;
+            font-family: monospace;
+            line-height: 1.6;
+        }
+        .file-tree .folder {
+            color: #4ecdc4;
+        }
+        .file-tree .file {
+            color: #ccc;
+        }
+        .file-tree .desc {
+            color: #888;
+        }
+        .principle-box {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 1px solid #ff6b35;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+        .principle-box h4 {
+            color: #ff6b35;
+            margin-top: 0;
+        }
+        table.deps-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table.deps-table th, table.deps-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+        table.deps-table th {
+            background: #1a1a2e;
+            color: #ff6b35;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo-container">
+            <img src="https://raw.githubusercontent.com/simple-eiffel/claude_eiffel_op_docs/main/artwork/LOGO.png" alt="simple_* logo" class="logo">
+        </div>
+        <h1>simple_lsp Architecture</h1>
+        <p class="tagline">System Design and Implementation Details</p>
+        <div class="badges">
+            <span class="badge badge-version">v0.8.0</span>
+            <span class="badge badge-license">MIT</span>
+        </div>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="user-guide.html">User Guide</a></li>
+            <li><a href="api-reference.html">API Reference</a></li>
+            <li><a href="#overview">Overview</a></li>
+            <li><a href="#components">Components</a></li>
+            <li><a href="#data-flow">Data Flow</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <section id="overview">
+            <h2>Architecture Overview</h2>
+            <p>
+                simple_lsp is a Language Server Protocol implementation for Eiffel, built entirely in Eiffel
+                using the simple_* ecosystem. It follows a handler-based architecture where each LSP capability
+                is implemented by a dedicated handler class.
+            </p>
+
+            <div class="diagram">
+<span class="highlight">VS Code</span>                                           <span class="highlight">simple_lsp</span>
+    |                                                   |
+    |  <span class="dim">JSON-RPC over stdio</span>                         |
+    +--------------------------------------------------+
+    |                                                   |
+    |  [Extension]  ------>  [LSP_APPLICATION]          |
+    |                              |                    |
+    |                        [LSP_SERVER]               |
+    |                              |                    |
+    |              +-------+-------+-------+            |
+    |              |       |       |       |            |
+    |           [NAV]   [HOVER] [COMP]  [...]           |
+    |              |       |       |       |            |
+    |              +-------+-------+-------+            |
+    |                      |                            |
+    |              [LSP_SYMBOL_DATABASE]                |
+    |                      |                            |
+    |               [SQLite + Parser]                   |
+    +--------------------------------------------------+
+            </div>
+
+            <h3>Design Principles</h3>
+            <div class="principle-box">
+                <h4>Design by Contract</h4>
+                <p>Every public feature has preconditions (require) and postconditions (ensure).
+                Class invariants guarantee object consistency. Contracts are preserved in production
+                builds using <code>-finalize -keep</code>.</p>
+            </div>
+            <div class="principle-box">
+                <h4>Single Responsibility</h4>
+                <p>Each handler class handles one aspect of LSP functionality.
+                LSP_SERVER coordinates but delegates actual work to handlers.
+                Database operations are isolated in LSP_SYMBOL_DATABASE.</p>
+            </div>
+            <div class="principle-box">
+                <h4>Dependency Injection</h4>
+                <p>Handlers receive their dependencies (database, logger, parsers) via their
+                creation procedures. This enables testing and makes dependencies explicit.</p>
+            </div>
+        </section>
+
+        <section id="project-structure">
+            <h2>Project Structure</h2>
+            <div class="file-tree">
+<span class="folder">simple_lsp/</span>
+    <span class="folder">src/</span>                          <span class="desc">-- Source code</span>
+        <span class="file">lsp_application.e</span>         <span class="desc">-- Entry point</span>
+        <span class="file">lsp_server.e</span>              <span class="desc">-- Main server (coordinator)</span>
+        <span class="file">lsp_message.e</span>             <span class="desc">-- JSON-RPC message wrapper</span>
+        <span class="file">lsp_logger.e</span>              <span class="desc">-- Logging utility</span>
+        <span class="file">lsp_symbol_database.e</span>     <span class="desc">-- SQLite symbol storage</span>
+        <span class="file">lsp_navigation_handler.e</span>  <span class="desc">-- Definition, references, symbols</span>
+        <span class="file">lsp_hover_handler.e</span>       <span class="desc">-- Hover documentation</span>
+        <span class="file">lsp_completion_handler.e</span>  <span class="desc">-- Code completion</span>
+        <span class="file">lsp_rename_handler.e</span>      <span class="desc">-- Symbol renaming</span>
+        <span class="file">lsp_signature_help_handler.e</span>  <span class="desc">-- Parameter hints</span>
+        <span class="file">lsp_document_highlight_handler.e</span>  <span class="desc">-- Symbol highlighting</span>
+        <span class="file">lsp_semantic_tokens_handler.e</span>  <span class="desc">-- Syntax highlighting</span>
+        <span class="file">lsp_contract_lens_handler.e</span>  <span class="desc">-- Flat contract view</span>
+        <span class="file">lsp_call_hierarchy_handler.e</span>  <span class="desc">-- Call graph</span>
+        <span class="file">lsp_type_hierarchy_handler.e</span>  <span class="desc">-- Inheritance tree</span>
+        <span class="file">lsp_implementation_handler.e</span>  <span class="desc">-- Go to implementation</span>
+        <span class="file">lsp_test_runner_handler.e</span>  <span class="desc">-- Test discovery/execution</span>
+        <span class="file">lsp_ecf_parser.e</span>          <span class="desc">-- ECF file parser</span>
+        <span class="file">ecf_target.e</span>              <span class="desc">-- ECF target info</span>
+        <span class="file">ecf_library.e</span>             <span class="desc">-- ECF library info</span>
+        <span class="file">ecf_cluster.e</span>             <span class="desc">-- ECF cluster info</span>
+    <span class="folder">tests/</span>                        <span class="desc">-- Test suite</span>
+        <span class="file">lsp_test_suite.e</span>          <span class="desc">-- EQA test set</span>
+    <span class="folder">vscode-extension/</span>             <span class="desc">-- VS Code extension</span>
+        <span class="file">package.json</span>              <span class="desc">-- Extension manifest</span>
+        <span class="file">extension.ts</span>              <span class="desc">-- Extension code</span>
+    <span class="folder">dist/</span>                         <span class="desc">-- Distribution files</span>
+        <span class="folder">windows/</span>                  <span class="desc">-- Windows binaries</span>
+        <span class="file">simple_lsp_setup.iss</span>      <span class="desc">-- Inno Setup script</span>
+    <span class="folder">docs/</span>                         <span class="desc">-- Documentation</span>
+        <span class="file">index.html</span>                <span class="desc">-- Landing page</span>
+        <span class="file">user-guide.html</span>           <span class="desc">-- User documentation</span>
+        <span class="file">api-reference.html</span>        <span class="desc">-- API documentation</span>
+        <span class="file">architecture.html</span>         <span class="desc">-- This file</span>
+    <span class="file">simple_lsp.ecf</span>                <span class="desc">-- EiffelStudio config</span>
+    <span class="file">README.md</span>                     <span class="desc">-- Project readme</span>
+            </div>
+        </section>
+
+        <section id="components">
+            <h2>Component Details</h2>
+
+            <div class="component-card">
+                <h4>LSP_APPLICATION</h4>
+                <p>Entry point for the LSP server. Parses command line arguments and creates LSP_SERVER.</p>
+                <p class="deps">Dependencies: LSP_SERVER</p>
+                <p>
+                    Uses inline C externals to access command line arguments (eif_argc, eif_argv).
+                    Passes workspace root to server or defaults to current directory.
+                </p>
+            </div>
+
+            <div class="component-card">
+                <h4>LSP_SERVER</h4>
+                <p>Central coordinator. Handles JSON-RPC communication and dispatches to handlers.</p>
+                <p class="deps">Dependencies: All handlers, LSP_SYMBOL_DATABASE, EIFFEL_PARSER, LSP_LOGGER, EIFGENS_METADATA_PARSER, SIMPLE_UCF</p>
+                <h5>Responsibilities:</h5>
+                <ul>
+                    <li>Read LSP messages from stdin (Content-Length header + JSON body)</li>
+                    <li>Parse JSON-RPC messages into LSP_MESSAGE objects</li>
+                    <li>Dispatch to appropriate handler based on method name</li>
+                    <li>Format and write responses to stdout</li>
+                    <li>Manage server lifecycle (initialize, initialized, shutdown, exit)</li>
+                    <li>Index workspace files on initialization</li>
+                    <li>Load universe configuration (UCF) for cross-library navigation</li>
+                </ul>
+            </div>
+
+            <div class="component-card">
+                <h4>LSP_SYMBOL_DATABASE</h4>
+                <p>SQLite database for persistent symbol storage. Enables fast lookup without re-parsing.</p>
+                <p class="deps">Dependencies: SIMPLE_SQL_DATABASE</p>
+                <h5>Tables:</h5>
+                <ul>
+                    <li><strong>classes</strong> - Class definitions with file location and attributes</li>
+                    <li><strong>features</strong> - Feature definitions linked to classes</li>
+                    <li><strong>inheritance</strong> - Parent-child class relationships</li>
+                    <li><strong>type_references</strong> - Client/supplier relationships</li>
+                    <li><strong>parse_errors</strong> - Syntax errors for diagnostics</li>
+                </ul>
+                <p>Uses file modification times to avoid re-indexing unchanged files.</p>
+            </div>
+
+            <div class="component-card">
+                <h4>Handler Classes</h4>
+                <p>Each handler implements one aspect of LSP functionality.</p>
+                <h5>Common Pattern:</h5>
+                <ul>
+                    <li>Receive database, logger, and parser dependencies in <code>make</code></li>
+                    <li>Provide operation features that return SIMPLE_JSON_* objects</li>
+                    <li>Use contracts to validate inputs and outputs</li>
+                    <li>Log operations for debugging</li>
+                </ul>
+            </div>
+
+            <div class="component-card">
+                <h4>EIFFEL_PARSER (from simple_eiffel_parser)</h4>
+                <p>Parses Eiffel source code into an AST for analysis.</p>
+                <p class="deps">External library: simple_eiffel_parser</p>
+                <p>
+                    Provides EIFFEL_AST with classes and features.
+                    Each EIFFEL_CLASS_NODE contains features.
+                    Each EIFFEL_FEATURE_NODE contains preconditions/postconditions.
+                </p>
+            </div>
+
+            <div class="component-card">
+                <h4>EIFGENS_METADATA_PARSER (from simple_eiffel_parser)</h4>
+                <p>Parses EiffelStudio's compiled metadata from EIFGENs folder.</p>
+                <p class="deps">External library: simple_eiffel_parser</p>
+                <p>
+                    Provides complete inheritance chains including stdlib classes.
+                    Required for accurate type hierarchy and feature origin tracking.
+                    Only available after compiling the project with EiffelStudio.
+                </p>
+            </div>
+
+            <div class="component-card">
+                <h4>SIMPLE_UCF (from simple_ucf)</h4>
+                <p>Universe Configuration File parser for cross-library navigation.</p>
+                <p class="deps">External library: simple_ucf</p>
+                <p>
+                    Reads universe.ucf files that define library locations.
+                    Expands environment variables (${SIMPLE_JSON}, etc.).
+                    Enables Go to Definition across library boundaries.
+                </p>
+            </div>
+        </section>
+
+        <section id="data-flow">
+            <h2>Data Flow</h2>
+
+            <h3>Initialization Flow</h3>
+            <div class="flow-section">
+                <ol>
+                    <li>VS Code extension launches <code>simple_lsp.exe</code> with workspace path</li>
+                    <li>LSP_APPLICATION.make creates LSP_SERVER with workspace root</li>
+                    <li>LSP_SERVER.make initializes all handlers and database</li>
+                    <li>LSP_SERVER.run enters main loop, waiting for messages</li>
+                    <li>VS Code sends <code>initialize</code> request with client capabilities</li>
+                    <li>LSP_SERVER responds with server capabilities</li>
+                    <li>VS Code sends <code>initialized</code> notification</li>
+                    <li>LSP_SERVER indexes workspace files and loads EIFGENs metadata</li>
+                </ol>
+            </div>
+
+            <h3>Request/Response Flow</h3>
+            <div class="diagram">
+<span class="highlight">VS Code</span>                          <span class="highlight">LSP_SERVER</span>                    <span class="highlight">Handler</span>
+    |                                   |                             |
+    |  textDocument/definition          |                             |
+    | --------------------------------> |                             |
+    |                                   |  dispatch_message           |
+    |                                   | --------------------------> |
+    |                                   |                             |
+    |                                   |  find_definition(word)      |
+    |                                   | --------------------------> |
+    |                                   |                             |
+    |                                   |         <span class="dim">query database</span>        |
+    |                                   |                             |
+    |                                   |  Location JSON              |
+    |                                   | <---------------------------|
+    |                                   |                             |
+    |  {"result": {...}}                |                             |
+    | <-------------------------------- |                             |
+    |                                   |                             |
+            </div>
+
+            <h3>File Indexing Flow</h3>
+            <div class="flow-section">
+                <ol>
+                    <li>Receive <code>textDocument/didOpen</code> or <code>textDocument/didSave</code></li>
+                    <li>Check if file mtime has changed since last index</li>
+                    <li>If changed, clear old symbols from database</li>
+                    <li>Parse file with EIFFEL_PARSER</li>
+                    <li>Extract classes, features, inheritance, type references</li>
+                    <li>Store in LSP_SYMBOL_DATABASE</li>
+                    <li>Store parse errors for diagnostics</li>
+                </ol>
+            </div>
+
+            <h3>Hover Info Flow</h3>
+            <div class="flow-section">
+                <ol>
+                    <li>Receive <code>textDocument/hover</code> with position</li>
+                    <li>Extract word at position from document</li>
+                    <li>Resolve type aliases (INTEGER -> INTEGER_32)</li>
+                    <li>Try to find as class name in database</li>
+                    <li>If class: get inheritance chain from EIFGENs</li>
+                    <li>If class: get clients/suppliers from type_references</li>
+                    <li>If not class: try as feature name across all classes</li>
+                    <li>If feature: get origin class from contract lens handler</li>
+                    <li>If feature: get flat contracts from inheritance chain</li>
+                    <li>Format markdown and return Hover object</li>
+                </ol>
+            </div>
+        </section>
+
+        <section id="dependencies">
+            <h2>External Dependencies</h2>
+            <table class="deps-table">
+                <tr>
+                    <th>Library</th>
+                    <th>Purpose</th>
+                    <th>Environment Variable</th>
+                </tr>
+                <tr>
+                    <td>simple_json</td>
+                    <td>JSON parsing and generation for LSP messages</td>
+                    <td>SIMPLE_JSON</td>
+                </tr>
+                <tr>
+                    <td>simple_sql</td>
+                    <td>SQLite database for symbol storage</td>
+                    <td>SIMPLE_SQL</td>
+                </tr>
+                <tr>
+                    <td>simple_eiffel_parser</td>
+                    <td>Eiffel source code parsing and EIFGENs metadata</td>
+                    <td>SIMPLE_EIFFEL_PARSER</td>
+                </tr>
+                <tr>
+                    <td>simple_ucf</td>
+                    <td>Universe configuration file parsing</td>
+                    <td>SIMPLE_UCF</td>
+                </tr>
+                <tr>
+                    <td>simple_file</td>
+                    <td>File system operations</td>
+                    <td>SIMPLE_FILE</td>
+                </tr>
+                <tr>
+                    <td>simple_regex</td>
+                    <td>Regular expression matching</td>
+                    <td>SIMPLE_REGEX</td>
+                </tr>
+                <tr>
+                    <td>simple_process</td>
+                    <td>Process execution for test runner</td>
+                    <td>SIMPLE_PROCESS</td>
+                </tr>
+            </table>
+        </section>
+
+        <section id="lsp-protocol">
+            <h2>LSP Protocol Implementation</h2>
+
+            <h3>Message Format</h3>
+            <p>LSP uses JSON-RPC 2.0 over stdio with Content-Length headers:</p>
+            <pre><code>Content-Length: 123\r\n
+\r\n
+{"jsonrpc":"2.0","id":1,"method":"textDocument/definition","params":{...}}</code></pre>
+
+            <h3>Supported Capabilities</h3>
+            <div class="diagram">
+<span class="highlight">Server Capabilities:</span>
+    textDocumentSync: Full (open/change/save/close)
+    completionProvider: { triggerCharacters: ["."] }
+    hoverProvider: true
+    definitionProvider: true
+    referencesProvider: true
+    documentSymbolProvider: true
+    workspaceSymbolProvider: true
+    renameProvider: { prepareProvider: true }
+    documentHighlightProvider: true
+    signatureHelpProvider: { triggerCharacters: ["(", ","] }
+    callHierarchyProvider: true
+    typeHierarchyProvider: true
+    implementationProvider: true
+
+<span class="highlight">Custom Methods:</span>
+    eiffel/dbcMetrics
+    eiffel/discoverTests
+    eiffel/runTest
+    eiffel/runAllTests
+            </div>
+
+            <h3>Error Handling</h3>
+            <p>
+                LSP errors are returned as JSON-RPC error responses. Parse errors are logged
+                and stored in the database for diagnostics. Invalid requests are logged but
+                don't crash the server.
+            </p>
+        </section>
+
+        <section id="workspace-data">
+            <h2>Workspace Data</h2>
+            <p>simple_lsp stores its data in a <code>.eiffel_lsp</code> directory in the workspace root:</p>
+            <div class="file-tree">
+<span class="folder">.eiffel_lsp/</span>
+    <span class="file">symbols.db</span>    <span class="desc">-- SQLite database with all indexed symbols</span>
+    <span class="file">lsp.log</span>       <span class="desc">-- Debug log file</span>
+            </div>
+            <p>
+                This directory can be safely deleted to force re-indexing.
+                It should be added to <code>.gitignore</code>.
+            </p>
+        </section>
+
+        <section id="eifgens-integration">
+            <h2>EIFGENs Integration</h2>
+            <p>
+                When an EIFGENs directory exists (from a previous EiffelStudio compilation),
+                simple_lsp reads class descriptors to get complete inheritance information.
+            </p>
+
+            <h3>What EIFGENs Provides</h3>
+            <ul>
+                <li><strong>Complete inheritance chains</strong> - Including stdlib classes (STRING, ARRAY, etc.)</li>
+                <li><strong>Resolved generics</strong> - Actual type parameters for generic classes</li>
+                <li><strong>Feature tables</strong> - All features including inherited ones</li>
+                <li><strong>Class descriptors</strong> - Deferred/expanded/frozen status</li>
+            </ul>
+
+            <h3>Features Requiring EIFGENs</h3>
+            <ul>
+                <li>Type Hierarchy (complete ancestor/descendant trees)</li>
+                <li>Feature Origin (which class introduced a feature)</li>
+                <li>Flat Contract View (contracts from all ancestors)</li>
+                <li>Hover info for stdlib classes</li>
+            </ul>
+
+            <p>
+                Without EIFGENs, these features still work but with limited information
+                (only workspace classes are known).
+            </p>
+        </section>
+
+        <section id="building">
+            <h2>Building simple_lsp</h2>
+
+            <h3>Environment Setup</h3>
+            <pre><code># Set all simple_* library paths
+export SIMPLE_JSON=/path/to/simple_json
+export SIMPLE_SQL=/path/to/simple_sql
+export SIMPLE_EIFFEL_PARSER=/path/to/simple_eiffel_parser
+export SIMPLE_UCF=/path/to/simple_ucf
+export SIMPLE_FILE=/path/to/simple_file
+export SIMPLE_REGEX=/path/to/simple_regex
+export SIMPLE_PROCESS=/path/to/simple_process</code></pre>
+
+            <h3>Compilation</h3>
+            <pre><code># Development build (workbench, fast compile)
+cd /path/to/simple_lsp
+ec.exe -batch -config simple_lsp.ecf -target simple_lsp_exe -c_compile
+
+# Production build (finalized with contracts)
+ec.exe -batch -config simple_lsp.ecf -target simple_lsp_exe -finalize -keep -c_compile</code></pre>
+
+            <h3>Output Locations</h3>
+            <ul>
+                <li>Workbench: <code>EIFGENs/simple_lsp_exe/W_code/simple_lsp.exe</code></li>
+                <li>Finalized: <code>EIFGENs/simple_lsp_exe/F_code/simple_lsp.exe</code></li>
+            </ul>
+
+            <h3>CRITICAL: Use -keep for Production</h3>
+            <p>
+                Always use <code>-finalize -keep</code> for production builds. This preserves
+                Design by Contract assertions in the final executable. Without <code>-keep</code>,
+                contracts are stripped and the executable is smaller but lacks runtime checks.
+            </p>
+        </section>
+
+        <section id="testing">
+            <h2>Testing</h2>
+
+            <h3>Unit Tests</h3>
+            <pre><code># Compile test target
+ec.exe -batch -config simple_lsp.ecf -target simple_lsp_tests -c_compile
+
+# Run tests
+./EIFGENs/simple_lsp_tests/W_code/simple_lsp.exe</code></pre>
+
+            <h3>Manual Testing</h3>
+            <ol>
+                <li>Build the VS Code extension: <code>cd vscode-extension && npm run compile</code></li>
+                <li>Package the extension: <code>npx vsce package</code></li>
+                <li>Install the VSIX in VS Code</li>
+                <li>Open a folder with Eiffel files</li>
+                <li>Check <code>.eiffel_lsp/lsp.log</code> for debug output</li>
+            </ol>
+        </section>
+
+        <section id="troubleshooting-dev">
+            <h2>Developer Troubleshooting</h2>
+
+            <h3>LSP Not Starting</h3>
+            <ul>
+                <li>Check VS Code Output panel: View > Output > Eiffel LSP</li>
+                <li>Verify the executable path in settings</li>
+                <li>Try running the server manually: <code>simple_lsp.exe /path/to/workspace</code></li>
+            </ul>
+
+            <h3>Features Not Working</h3>
+            <ul>
+                <li>Check <code>.eiffel_lsp/lsp.log</code> for errors</li>
+                <li>Delete <code>.eiffel_lsp/symbols.db</code> to force re-indexing</li>
+                <li>Compile the project with EiffelStudio to generate EIFGENs</li>
+            </ul>
+
+            <h3>Database Issues</h3>
+            <ul>
+                <li>Delete <code>.eiffel_lsp/</code> directory and restart VS Code</li>
+                <li>Check file permissions</li>
+                <li>Verify SQLite is compiled correctly (simple_sql dependency)</li>
+            </ul>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 simple_* ecosystem. MIT License.</p>
+        <p>
+            <a href="https://github.com/simple-eiffel/simple_lsp">GitHub</a> |
+            <a href="index.html">Home</a> |
+            <a href="user-guide.html">User Guide</a> |
+            <a href="api-reference.html">API Reference</a>
+        </p>
+    </footer>
+</body>
+</html>

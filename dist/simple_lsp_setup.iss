@@ -7,7 +7,7 @@
 ; ============================================================================
 
 #define MyAppName "Eiffel LSP"
-#define MyAppVersion "0.7.4"
+#define MyAppVersion "0.8.0"
 #define MyAppPublisher "Simple Eiffel"
 #define MyAppURL "https://github.com/simple-eiffel/simple_lsp"
 #define MyAppExeName "simple_lsp.exe"
@@ -66,7 +66,7 @@ Root: HKCU; Subkey: "Environment"; ValueType: string; ValueName: "SIMPLE_LSP"; V
 
 [Run]
 ; Install VS Code extension
-Filename: "cmd.exe"; Parameters: "/c code --install-extension ""{app}\eiffel-lsp-0.6.0.vsix"""; StatusMsg: "Installing VS Code extension..."; Flags: runhidden waituntilterminated; Tasks: vscodeext; Check: VSCodeInstalled
+Filename: "cmd.exe"; Parameters: "/c code --install-extension ""{app}\eiffel-lsp-{#MyAppVersion}.vsix"""; StatusMsg: "Installing VS Code extension..."; Flags: runhidden waituntilterminated; Tasks: vscodeext; Check: VSCodeInstalled
 
 [Code]
 // Check if VS Code is installed
