@@ -39,6 +39,9 @@ feature {NONE} -- Initialization
 			create hover_handler.make (symbol_db, logger, eifgens_parser)
 			create completion_handler.make (symbol_db, logger)
 			create navigation_handler.make (symbol_db, logger, parser)
+			create document_highlight_handler.make (logger)
+			create semantic_tokens_handler.make (logger)
+			create signature_help_handler.make (symbol_db, logger, document_cache)
 			create universe.make
 			is_initialized := False
 			is_running := False
@@ -62,12 +65,15 @@ feature {NONE} -- Initialization
 			hover_handler_created: hover_handler /= Void
 			completion_handler_created: completion_handler /= Void
 			navigation_handler_created: navigation_handler /= Void
+			document_highlight_handler_created: document_highlight_handler /= Void
+			semantic_tokens_handler_created: semantic_tokens_handler /= Void
+			signature_help_handler_created: signature_help_handler /= Void
 			universe_created: universe /= Void
 		end
 
 feature -- Constants
 
-	Version: STRING = "0.7.4"
+	Version: STRING = "0.7.5"
 			-- LSP server version (update on each release)
 
 feature -- Access
@@ -92,6 +98,15 @@ feature -- Access
 
 	navigation_handler: LSP_NAVIGATION_HANDLER
 			-- Handler for navigation operations (definition, references, symbols)
+
+	document_highlight_handler: LSP_DOCUMENT_HIGHLIGHT_HANDLER
+			-- Handler for document highlight operations
+
+	semantic_tokens_handler: LSP_SEMANTIC_TOKENS_HANDLER
+			-- Handler for semantic tokens operations
+
+	signature_help_handler: LSP_SIGNATURE_HELP_HANDLER
+			-- Handler for signature help operations
 
 	universe: SIMPLE_UCF
 			-- Universe configuration for cross-library navigation
@@ -292,6 +307,10 @@ feature {NONE} -- Message Processing
 				handle_workspace_symbol (a_msg)
 			elseif a_msg.method.same_string ("textDocument/references") then
 				handle_references (a_msg)
+			elseif a_msg.method.same_string ("textDocument/documentHighlight") then
+				handle_document_highlight (a_msg)
+			elseif a_msg.method.same_string ("textDocument/semanticTokens/full") then
+				handle_semantic_tokens (a_msg)
 			elseif a_msg.method.same_string ("textDocument/signatureHelp") then
 				handle_signature_help (a_msg)
 			elseif a_msg.method.same_string ("textDocument/rename") then
@@ -371,7 +390,9 @@ feature {NONE} -- Lifecycle Handlers
 			l_capabilities.put_boolean (True, "documentSymbolProvider").do_nothing
 			l_capabilities.put_boolean (True, "workspaceSymbolProvider").do_nothing
 			l_capabilities.put_boolean (True, "referencesProvider").do_nothing
-			l_capabilities.put_object (create_signature_help_options, "signatureHelpProvider").do_nothing
+			l_capabilities.put_boolean (True, "documentHighlightProvider").do_nothing
+			-- l_capabilities.put_object (semantic_tokens_handler.create_options, "semanticTokensProvider").do_nothing
+			l_capabilities.put_object (signature_help_handler.create_options, "signatureHelpProvider").do_nothing
 			l_capabilities.put_boolean (True, "renameProvider").do_nothing
 
 			-- Build server info (shows in VS Code output)
@@ -1526,24 +1547,35 @@ feature {NONE} -- Completion
 			result_not_void: Result /= Void
 		end
 
-feature {NONE} -- Signature Help
+feature {NONE} -- Semantic Tokens
 
-	create_signature_help_options: SIMPLE_JSON_OBJECT
-			-- Create signature help provider options
+	handle_semantic_tokens (a_msg: LSP_MESSAGE)
+			-- Handle textDocument/semanticTokens/full - delegates to semantic_tokens_handler
+		require
+			msg_not_void: a_msg /= Void
+			is_request: a_msg.is_request
 		local
-			l_triggers: SIMPLE_JSON_ARRAY
+			l_uri, l_path: STRING
+			l_result: SIMPLE_JSON_OBJECT
+			l_data: SIMPLE_JSON_ARRAY
 		do
-			create Result.make
-			create l_triggers.make
-			l_triggers.add_string ("(").do_nothing  -- Trigger on open paren
-			l_triggers.add_string (",").do_nothing  -- Trigger on comma (next param)
-			Result.put_array (l_triggers, "triggerCharacters").do_nothing
-		ensure
-			result_not_void: Result /= Void
+			l_uri := a_msg.text_document_uri
+			l_path := uri_to_path (l_uri)
+
+			log_info ("Semantic tokens requested for: " + l_path)
+
+			l_data := semantic_tokens_handler.compute_tokens (l_path)
+
+			create l_result.make
+			l_result.put_array (l_data, "data").do_nothing
+
+			send_response (a_msg.id, l_result)
 		end
 
+feature {NONE} -- Signature Help
+
 	handle_signature_help (a_msg: LSP_MESSAGE)
-			-- Handle textDocument/signatureHelp - show parameter hints
+			-- Handle textDocument/signatureHelp - delegates to signature_help_handler
 		require
 			msg_not_void: a_msg /= Void
 			is_request: a_msg.is_request
@@ -1561,11 +1593,11 @@ feature {NONE} -- Signature Help
 			log_debug ("Signature help at: " + l_path + ":" + l_line.out + ":" + l_col.out)
 
 			-- Find the feature being called
-			l_feature_name := feature_at_position (l_path, l_line, l_col)
+			l_feature_name := signature_help_handler.feature_at_position (l_path, l_line, l_col)
 			log_debug ("Feature name for signature: '" + l_feature_name + "'")
 
 			if not l_feature_name.is_empty then
-				l_result := get_signature_help (l_feature_name, l_path, l_line, l_col)
+				l_result := signature_help_handler.get_signature_help (l_feature_name, l_path, l_line, l_col)
 			end
 
 			if attached l_result then
@@ -1573,322 +1605,6 @@ feature {NONE} -- Signature Help
 			else
 				send_null_response (a_msg.id)
 			end
-		end
-
-	get_signature_help (a_feature_name: STRING; a_path: STRING; a_line, a_col: INTEGER): detachable SIMPLE_JSON_OBJECT
-			-- Get signature help for feature
-		require
-			name_not_void: a_feature_name /= Void
-			name_not_empty: not a_feature_name.is_empty
-		local
-			l_feature_info: detachable TUPLE [file_path: STRING; line, column: INTEGER; signature, comment: STRING]
-			l_signatures: SIMPLE_JSON_ARRAY
-			l_sig_obj: SIMPLE_JSON_OBJECT
-			l_parameters: SIMPLE_JSON_ARRAY
-			l_signature: STRING
-			l_active_param: INTEGER
-		do
-			-- Find the feature in the database
-			across symbol_db.all_class_names as class_name until Result /= Void loop
-				l_feature_info := symbol_db.find_feature (class_name, a_feature_name)
-				if attached l_feature_info and then attached l_feature_info.signature as sig and then not sig.is_empty then
-					-- Build signature help response
-					create Result.make
-					create l_signatures.make
-					create l_sig_obj.make
-
-					-- The signature label
-					l_signature := a_feature_name
-					if sig.has ('(') then
-						l_signature := l_signature + " " + sig
-					else
-						l_signature := l_signature + sig
-					end
-					l_sig_obj.put_string (l_signature, "label").do_nothing
-
-					-- Documentation
-					if attached l_feature_info.comment as cmt and then not cmt.is_empty then
-						l_sig_obj.put_string (cmt, "documentation").do_nothing
-					end
-
-					-- Parse parameters from signature
-					l_parameters := extract_parameters (sig)
-					if l_parameters.count > 0 then
-						l_sig_obj.put_array (l_parameters, "parameters").do_nothing
-					end
-
-					l_signatures.add_object (l_sig_obj).do_nothing
-					Result.put_array (l_signatures, "signatures").do_nothing
-					Result.put_integer (0, "activeSignature").do_nothing
-
-					-- Determine active parameter based on commas before cursor
-					l_active_param := count_commas_before_cursor (a_path, a_line, a_col)
-					Result.put_integer (l_active_param, "activeParameter").do_nothing
-
-					log_info ("Signature help: " + l_signature + " (param " + l_active_param.out + ")")
-				end
-			end
-		end
-
-	extract_parameters (a_signature: STRING): SIMPLE_JSON_ARRAY
-			-- Extract parameter info from signature
-			-- Input: "(a_name: STRING; a_value: INTEGER): BOOLEAN" or similar
-		require
-			sig_not_void: a_signature /= Void
-		local
-			l_params_str: STRING
-			l_params: LIST [STRING]
-			l_param_obj: SIMPLE_JSON_OBJECT
-			l_start, l_end: INTEGER
-		do
-			create Result.make
-
-			-- Find content between parentheses
-			l_start := a_signature.index_of ('(', 1)
-			l_end := a_signature.index_of (')', 1)
-
-			if l_start > 0 and l_end > l_start then
-				l_params_str := a_signature.substring (l_start + 1, l_end - 1)
-				l_params_str.left_adjust
-				l_params_str.right_adjust
-
-				if not l_params_str.is_empty then
-					-- Split by semicolon
-					l_params := l_params_str.split (';')
-					across l_params as param loop
-						param.left_adjust
-						param.right_adjust
-						if not param.is_empty then
-							create l_param_obj.make
-							l_param_obj.put_string (param.to_string_8, "label").do_nothing
-							Result.add_object (l_param_obj).do_nothing
-						end
-					end
-				end
-			end
-		ensure
-			result_not_void: Result /= Void
-		end
-
-	feature_at_position (a_path: STRING; a_line, a_col: INTEGER): STRING
-			-- Find feature name being called at position (look backward for identifier before '(')
-		require
-			path_not_void: a_path /= Void
-		local
-			l_file: SIMPLE_FILE
-			l_lines: LIST [STRING]
-			l_line_text: STRING
-			l_pos: INTEGER
-			l_start, l_end: INTEGER
-			l_paren_depth: INTEGER
-			l_found_paren: BOOLEAN
-			l_content: STRING
-		do
-			create Result.make_empty
-
-			-- Try to get content from cache first, fall back to file
-			if document_cache.has (a_path) then
-				l_content := document_cache.item (a_path)
-				log_debug ("Using cached content for: " + a_path)
-			else
-				create l_file.make (a_path)
-				if l_file.exists then
-					l_content := l_file.read_text.to_string_8
-					log_debug ("Read from disk for: " + a_path)
-				end
-			end
-
-			if attached l_content then
-				l_lines := l_content.split ('%N')
-				if a_line >= 0 and a_line < l_lines.count then
-					l_line_text := l_lines.i_th (a_line + 1)
-					-- Remove carriage return if present (Windows line endings)
-					if l_line_text.count > 0 and then l_line_text.item (l_line_text.count) = '%R' then
-						l_line_text := l_line_text.substring (1, l_line_text.count - 1)
-					end
-					log_debug ("feature_at_position: line=" + l_line_text)
-
-					-- Start from cursor position and scan backward to find the opening '('
-					l_pos := (a_col).min (l_line_text.count)
-					if l_pos < 1 then
-						l_pos := l_line_text.count
-					end
-
-					-- Scan backward to find the opening paren, respecting nesting
-					l_paren_depth := 0
-					l_found_paren := False
-					from
-					until
-						l_pos < 1 or l_found_paren
-					loop
-						inspect l_line_text.item (l_pos)
-						when ')' then
-							l_paren_depth := l_paren_depth + 1
-						when '(' then
-							if l_paren_depth = 0 then
-								l_found_paren := True
-							else
-								l_paren_depth := l_paren_depth - 1
-							end
-						else
-							-- Keep scanning
-						end
-						if not l_found_paren then
-							l_pos := l_pos - 1
-						end
-					end
-
-					if l_found_paren then
-						log_debug ("Found opening paren at position: " + l_pos.out)
-						-- Move before the '('
-						l_pos := l_pos - 1
-						-- Skip whitespace before '('
-						from
-						until
-							l_pos < 1 or else l_line_text.item (l_pos) /= ' '
-						loop
-							l_pos := l_pos - 1
-						end
-						-- Now find the identifier (scan backward through word chars)
-						l_end := l_pos
-						from
-						until
-							l_pos < 1 or else not is_word_char (l_line_text.item (l_pos))
-						loop
-							l_pos := l_pos - 1
-						end
-						l_start := l_pos + 1
-
-						if l_end >= l_start and l_start >= 1 then
-							Result := l_line_text.substring (l_start, l_end)
-							log_debug ("Found feature name: '" + Result + "'")
-						end
-					else
-						log_debug ("No opening paren found on this line")
-					end
-				end
-			end
-		ensure
-			result_not_void: Result /= Void
-		end
-
-	count_commas_before_cursor (a_path: STRING; a_line, a_col: INTEGER): INTEGER
-			-- Count commas between opening paren and cursor position
-		require
-			path_not_void: a_path /= Void
-		local
-			l_file: SIMPLE_FILE
-			l_lines: LIST [STRING_32]
-			l_line_text: STRING
-			l_pos, l_paren_depth: INTEGER
-		do
-			create l_file.make (a_path)
-			if l_file.exists then
-				l_lines := l_file.read_lines
-				if a_line >= 0 and a_line < l_lines.count then
-					l_line_text := l_lines.i_th (a_line + 1).to_string_8
-
-					-- Find the opening paren and count commas from there
-					l_paren_depth := 0
-					from
-						l_pos := (a_col).min (l_line_text.count)
-					until
-						l_pos < 1 or else (l_line_text.item (l_pos) = '(' and l_paren_depth = 0)
-					loop
-						inspect l_line_text.item (l_pos)
-						when ')' then
-							l_paren_depth := l_paren_depth + 1
-						when '(' then
-							l_paren_depth := l_paren_depth - 1
-						when ',' then
-							if l_paren_depth = 0 then
-								Result := Result + 1
-							end
-						else
-							-- Other characters, keep scanning
-						end
-						l_pos := l_pos - 1
-					end
-				end
-			end
-		ensure
-			non_negative: Result >= 0
-		end
-
-feature {NONE} -- Document Symbols
-
-	get_document_symbols (a_path: STRING): SIMPLE_JSON_ARRAY
-			-- Get document symbols for file
-		require
-			path_not_void: a_path /= Void
-			path_not_empty: not a_path.is_empty
-		local
-			l_file: SIMPLE_FILE
-			l_content: STRING
-			l_ast: EIFFEL_AST
-			l_symbol: SIMPLE_JSON_OBJECT
-			l_range: SIMPLE_JSON_OBJECT
-			l_start_pos, l_end_pos: SIMPLE_JSON_OBJECT
-		do
-			create Result.make
-
-			create l_file.make (a_path)
-			if l_file.exists then
-				l_content := l_file.read_text.to_string_8
-				l_ast := parser.parse_string (l_content)
-
-				across l_ast.classes as cls loop
-					-- Add class symbol
-					create l_symbol.make
-					l_symbol.put_string (cls.name, "name").do_nothing
-					l_symbol.put_integer (5, "kind").do_nothing -- Class = 5
-
-					create l_start_pos.make
-					l_start_pos.put_integer (cls.line - 1, "line").do_nothing
-					l_start_pos.put_integer (cls.column - 1, "character").do_nothing
-
-					create l_end_pos.make
-					l_end_pos.put_integer (cls.line - 1, "line").do_nothing
-					l_end_pos.put_integer (cls.column - 1 + cls.name.count, "character").do_nothing
-
-					create l_range.make
-					l_range.put_object (l_start_pos, "start").do_nothing
-					l_range.put_object (l_end_pos, "end").do_nothing
-
-					l_symbol.put_object (l_range, "range").do_nothing
-					l_symbol.put_object (l_range, "selectionRange").do_nothing
-					Result.add_object (l_symbol).do_nothing
-
-					-- Add feature symbols
-					across cls.features as feat loop
-						create l_symbol.make
-						l_symbol.put_string (feat.name, "name").do_nothing
-						if feat.is_attribute then
-							l_symbol.put_integer (8, "kind").do_nothing -- Field = 8
-						else
-							l_symbol.put_integer (6, "kind").do_nothing -- Method = 6
-						end
-
-						create l_start_pos.make
-						l_start_pos.put_integer (feat.line - 1, "line").do_nothing
-						l_start_pos.put_integer (feat.column - 1, "character").do_nothing
-
-						create l_end_pos.make
-						l_end_pos.put_integer (feat.line - 1, "line").do_nothing
-						l_end_pos.put_integer (feat.column - 1 + feat.name.count, "character").do_nothing
-
-						create l_range.make
-						l_range.put_object (l_start_pos, "start").do_nothing
-						l_range.put_object (l_end_pos, "end").do_nothing
-
-						l_symbol.put_object (l_range, "range").do_nothing
-						l_symbol.put_object (l_range, "selectionRange").do_nothing
-						Result.add_object (l_symbol).do_nothing
-					end
-				end
-			end
-		ensure
-			result_not_void: Result /= Void
 		end
 
 feature {NONE} -- Workspace Symbols
@@ -1911,67 +1627,6 @@ feature {NONE} -- Workspace Symbols
 			log_info ("Workspace symbol search: '" + l_query + "'")
 			l_symbols := navigation_handler.get_workspace_symbols (l_query)
 			send_response_array (a_msg.id, l_symbols)
-		end
-
-	get_workspace_symbols (a_query: STRING): SIMPLE_JSON_ARRAY
-			-- Get workspace symbols matching query
-		require
-			query_not_void: a_query /= Void
-		local
-			l_symbol: SIMPLE_JSON_OBJECT
-			l_location: SIMPLE_JSON_OBJECT
-			l_range: SIMPLE_JSON_OBJECT
-			l_start_pos, l_end_pos: SIMPLE_JSON_OBJECT
-			l_kind: INTEGER
-		do
-			create Result.make
-			log_debug ("Searching workspace for: '" + a_query + "'")
-
-			across symbol_db.search_symbols (a_query) as sym loop
-				create l_symbol.make
-				l_symbol.put_string (sym.name, "name").do_nothing
-
-				-- Determine symbol kind
-				if sym.kind.same_string ("class") then
-					l_kind := 5 -- Class
-				elseif sym.kind.same_string ("attribute") then
-					l_kind := 8 -- Field
-				elseif sym.kind.same_string ("procedure") then
-					l_kind := 6 -- Method
-				else
-					l_kind := 12 -- Function
-				end
-				l_symbol.put_integer (l_kind, "kind").do_nothing
-
-				-- Container name (class that contains the feature)
-				if attached sym.container as cont and then not cont.is_empty then
-					l_symbol.put_string (cont, "containerName").do_nothing
-				end
-
-				-- Location
-				create l_start_pos.make
-				l_start_pos.put_integer (sym.line - 1, "line").do_nothing
-				l_start_pos.put_integer (0, "character").do_nothing
-
-				create l_end_pos.make
-				l_end_pos.put_integer (sym.line - 1, "line").do_nothing
-				l_end_pos.put_integer (sym.name.count, "character").do_nothing
-
-				create l_range.make
-				l_range.put_object (l_start_pos, "start").do_nothing
-				l_range.put_object (l_end_pos, "end").do_nothing
-
-				create l_location.make
-				l_location.put_string (path_to_uri (sym.file_path), "uri").do_nothing
-				l_location.put_object (l_range, "range").do_nothing
-
-				l_symbol.put_object (l_location, "location").do_nothing
-				Result.add_object (l_symbol).do_nothing
-			end
-
-			log_debug ("Found " + Result.count.out + " workspace symbols")
-		ensure
-			result_not_void: Result /= Void
 		end
 
 feature {NONE} -- Find References
@@ -1999,36 +1654,29 @@ feature {NONE} -- Find References
 			send_response_array (a_msg.id, l_references)
 		end
 
-	find_references (a_name: STRING): SIMPLE_JSON_ARRAY
-			-- Find all references to a symbol (class or feature)
+feature {NONE} -- Document Highlight
+
+	handle_document_highlight (a_msg: LSP_MESSAGE)
+			-- Handle textDocument/documentHighlight - delegates to document_highlight_handler
 		require
-			name_not_void: a_name /= Void
+			msg_not_void: a_msg /= Void
+			is_request: a_msg.is_request
 		local
-			l_location: SIMPLE_JSON_OBJECT
-			l_class_info: detachable TUPLE [id: INTEGER; file_path: STRING; line, column: INTEGER]
+			l_uri, l_path: STRING
+			l_line, l_col: INTEGER
+			l_word: STRING
+			l_highlights: SIMPLE_JSON_ARRAY
 		do
-			create Result.make
+			l_uri := a_msg.text_document_uri
+			l_path := uri_to_path (l_uri)
+			l_line := a_msg.position_line
+			l_col := a_msg.position_character
 
-			if a_name.is_empty then
-				-- Empty name, return empty array
-			else
-				-- Check if it's a class
-				l_class_info := symbol_db.find_class (a_name)
-				if attached l_class_info then
-					l_location := make_location (l_class_info.file_path, l_class_info.line, l_class_info.column)
-					Result.add_object (l_location).do_nothing
-				end
+			l_word := word_at_position (l_path, l_line, l_col)
+			log_info ("Document highlight requested for: '" + l_word + "'")
 
-				-- Find all features with this name (across all classes)
-				across symbol_db.all_features_named (a_name) as feat loop
-					l_location := make_location (feat.file_path, feat.line, 1)
-					Result.add_object (l_location).do_nothing
-				end
-			end
-
-			log_debug ("Found " + Result.count.out + " references")
-		ensure
-			result_not_void: Result /= Void
+			l_highlights := document_highlight_handler.find_highlights (l_path, l_word)
+			send_response_array (a_msg.id, l_highlights)
 		end
 
 feature {NONE} -- Rename Symbol
