@@ -8,8 +8,8 @@
     <link rel="icon" type="image/png" href="images/logo.png">
     <style>
         .diagram {
-            background: #0f0f23;
-            border: 1px solid #333;
+            background: var(--code-background);
+            border: 1px solid var(--border-color);
             border-radius: 8px;
             padding: 1.5rem;
             margin: 1.5rem 0;
@@ -17,62 +17,63 @@
             white-space: pre;
             overflow-x: auto;
             line-height: 1.4;
-            color: #4ecdc4;
+            color: var(--secondary-color);
         }
         .diagram .highlight {
-            color: #ff6b35;
+            color: var(--accent-color);
         }
         .diagram .dim {
-            color: #666;
+            color: var(--text-muted);
         }
         .component-card {
-            background: #1a1a2e;
-            border: 1px solid #333;
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
             border-radius: 8px;
             padding: 1.5rem;
             margin-bottom: 1.5rem;
         }
         .component-card h4 {
-            color: #ff6b35;
+            color: var(--accent-color);
             margin-top: 0;
-            border-bottom: 1px solid #333;
+            border-bottom: 1px solid var(--border-color);
             padding-bottom: 0.5rem;
         }
         .component-card .deps {
-            color: #888;
+            color: var(--text-muted);
             font-size: 0.9em;
         }
         .flow-section {
-            background: #16213e;
-            border-left: 3px solid #ff6b35;
+            background: var(--feature-bg);
+            border-left: 3px solid var(--accent-color);
             padding: 1rem;
             margin: 1rem 0;
+            border-radius: 4px;
         }
         .file-tree {
-            background: #0f0f23;
+            background: var(--code-background);
             padding: 1rem;
             border-radius: 4px;
             font-family: monospace;
             line-height: 1.6;
         }
         .file-tree .folder {
-            color: #4ecdc4;
+            color: var(--secondary-color);
         }
         .file-tree .file {
-            color: #ccc;
+            color: var(--text-color);
         }
         .file-tree .desc {
-            color: #888;
+            color: var(--text-muted);
         }
         .principle-box {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            border: 1px solid #ff6b35;
+            background: var(--surface-color);
+            border: 1px solid var(--accent-color);
             border-radius: 8px;
             padding: 1.5rem;
             margin: 1rem 0;
         }
         .principle-box h4 {
-            color: #ff6b35;
+            color: var(--accent-color);
             margin-top: 0;
         }
         table.deps-table {
@@ -82,11 +83,11 @@
         table.deps-table th, table.deps-table td {
             padding: 0.75rem;
             text-align: left;
-            border-bottom: 1px solid #333;
+            border-bottom: 1px solid var(--border-color);
         }
         table.deps-table th {
-            background: #1a1a2e;
-            color: #ff6b35;
+            background: var(--surface-color);
+            color: var(--accent-color);
         }
     </style>
 </head>

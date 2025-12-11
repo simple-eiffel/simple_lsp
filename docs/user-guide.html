@@ -7,18 +7,18 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="icon" type="image/png" href="images/logo.png">
     <style>
-        .use-case { background: #f8f9fa; border-left: 4px solid #007acc; padding: 1rem; margin: 1rem 0; }
-        .use-case h4 { margin-top: 0; color: #007acc; }
+        .use-case { background: var(--feature-bg); border-left: 4px solid var(--secondary-color); padding: 1rem; margin: 1rem 0; border-radius: 4px; }
+        .use-case h4 { margin-top: 0; color: var(--secondary-color); }
         .steps { counter-reset: step; }
         .steps li { counter-increment: step; margin: 0.5rem 0; }
-        .steps li::marker { content: "Step " counter(step) ": "; font-weight: bold; color: #007acc; }
-        .screenshot { border: 1px solid #ddd; border-radius: 4px; margin: 1rem 0; max-width: 100%; }
-        .tip { background: #e7f3ff; border-left: 4px solid #007acc; padding: 0.75rem; margin: 1rem 0; }
+        .steps li::marker { content: "Step " counter(step) ": "; font-weight: bold; color: var(--secondary-color); }
+        .screenshot { border: 1px solid var(--border-color); border-radius: 4px; margin: 1rem 0; max-width: 100%; }
+        .tip { background: var(--ensure-bg); border-left: 4px solid var(--ensure-border); padding: 0.75rem; margin: 1rem 0; border-radius: 4px; }
         .tip::before { content: "Tip: "; font-weight: bold; }
-        .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 0.75rem; margin: 1rem 0; }
+        .warning { background: var(--require-bg); border-left: 4px solid var(--require-border); padding: 0.75rem; margin: 1rem 0; border-radius: 4px; }
         .warning::before { content: "Note: "; font-weight: bold; }
-        kbd { background: #eee; border: 1px solid #ccc; border-radius: 3px; padding: 2px 6px; font-family: monospace; }
-        .feature-section { margin: 2rem 0; padding-bottom: 2rem; border-bottom: 1px solid #eee; }
+        kbd { background: var(--inline-code-bg); border: 1px solid var(--border-color); border-radius: 3px; padding: 2px 6px; font-family: monospace; color: var(--text-color); }
+        .feature-section { margin: 2rem 0; padding-bottom: 2rem; border-bottom: 1px solid var(--border-color); }
         .feature-section:last-child { border-bottom: none; }
     </style>
 </head>
