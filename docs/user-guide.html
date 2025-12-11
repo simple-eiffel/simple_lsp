@@ -70,6 +70,7 @@
                         <li><a href="#contracts">Contract Lens</a></li>
                         <li><a href="#feature-origin">Feature Origin</a></li>
                         <li><a href="#inheritance">Inheritance Chain</a></li>
+                        <li><a href="#dbc-heatmap">DbC Heatmap</a></li>
                     </ul>
                 </li>
                 <li><a href="#configuration">Configuration</a>
@@ -90,7 +91,7 @@
 
             <h4>Option A: Windows Installer (Recommended)</h4>
             <ol class="steps">
-                <li>Download <code>simple_lsp_setup_0.8.0.exe</code> from the <a href="https://github.com/simple-eiffel/simple_lsp/releases">releases page</a></li>
+                <li>Download <code>simple_lsp_setup_0.8.5.exe</code> from the <a href="https://github.com/simple-eiffel/simple_lsp/releases">releases page</a></li>
                 <li>Run the installer and follow the prompts</li>
                 <li>The installer sets up environment variables and installs the VS Code extension automatically</li>
             </ol>
@@ -100,7 +101,7 @@
                 <li>Download and extract the release archive</li>
                 <li>Copy <code>simple_lsp.exe</code> to a permanent location (e.g., <code>C:\tools\simple_lsp</code>)</li>
                 <li>Set the <code>SIMPLE_LSP</code> environment variable to point to that directory</li>
-                <li>Install the VS Code extension: <code>code --install-extension eiffel-lsp-0.8.0.vsix</code></li>
+                <li>Install the VS Code extension: <code>code --install-extension eiffel-lsp-0.8.5.vsix</code></li>
             </ol>
 
             <h3>First Use</h3>
@@ -501,6 +502,73 @@ make_deposit (amount: REAL)
                         <li>Read the inheritance chain</li>
                         <li>Use Go to Definition to explore any ancestor class</li>
                     </ol>
+                </div>
+            </article>
+
+            <article id="dbc-heatmap">
+                <h3>DbC Heatmap</h3>
+                <p><strong>Keyboard:</strong> <kbd>Ctrl+Shift+H</kbd> or Command Palette > "Eiffel: Show DbC Heatmap"</p>
+                <p>Visualize Design by Contract coverage across your entire ecosystem with an interactive heatmap.</p>
+
+                <h4>What the Heatmap Shows:</h4>
+                <img src="images/heatmap-with-clickable-report.png" alt="DbC Heatmap Screenshot" class="screenshot" style="max-width: 100%; border-radius: 8px; margin: 1rem 0;">
+
+                <p>The heatmap displays two synchronized views:</p>
+                <ul>
+                    <li><strong>Census Panel (left):</strong> Detailed statistics including totals, distribution metrics, contract coverage percentages, and ranked library lists</li>
+                    <li><strong>Force-Directed Graph (right):</strong> Interactive visualization where node color indicates DbC score (hot orange/red = high coverage, cool purple/black = low coverage)</li>
+                </ul>
+
+                <h4>Color Scale:</h4>
+                <table>
+                    <tr><th>Score</th><th>Color</th><th>Meaning</th></tr>
+                    <tr><td>90-100%</td><td style="background: #ff4500; color: white; padding: 2px 8px;">Red-Orange</td><td>Excellent - comprehensive contracts</td></tr>
+                    <tr><td>75-89%</td><td style="background: #ff6b35; color: white; padding: 2px 8px;">Orange</td><td>Good coverage</td></tr>
+                    <tr><td>50-74%</td><td style="background: #cc5500; color: white; padding: 2px 8px;">Burnt Orange</td><td>Moderate - room for improvement</td></tr>
+                    <tr><td>25-49%</td><td style="background: #8b4570; color: white; padding: 2px 8px;">Muted Magenta</td><td>Needs work</td></tr>
+                    <tr><td>1-24%</td><td style="background: #4a3060; color: white; padding: 2px 8px;">Dark Purple</td><td>Poor coverage</td></tr>
+                    <tr><td>0%</td><td style="background: #1a1a2e; color: white; padding: 2px 8px;">Near-Black</td><td>No contracts</td></tr>
+                </table>
+
+                <h4>Census Panel Sections:</h4>
+                <ul>
+                    <li><strong>TOTALS:</strong> Library count, classes, features, lines of code, contract lines</li>
+                    <li><strong>DISTRIBUTION:</strong> Min/Max/Avg/Median statistics per library</li>
+                    <li><strong>CONTRACT COVERAGE:</strong> Breakdown of preconditions, postconditions, invariants</li>
+                    <li><strong>QUALITY METRICS:</strong> Contract density (% of LOC) and contracts per feature</li>
+                    <li><strong>TOP 10 lists:</strong> Libraries ranked by features, LOC, and contract density (clickable!)</li>
+                </ul>
+
+                <div class="use-case">
+                    <h4>Use Case: Identifying libraries needing contract work</h4>
+                    <p><strong>Scenario:</strong> You want to improve DbC coverage across your ecosystem and need to prioritize which libraries to focus on.</p>
+                    <ol class="steps">
+                        <li>Press <kbd>Ctrl+Shift+H</kbd> to open the heatmap</li>
+                        <li>Look for dark purple/black nodes - these have low contract coverage</li>
+                        <li>Check the census panel's "TOP 10 BY CONTRACT DENSITY" - libraries at the bottom need work</li>
+                        <li>Click a library name in the census panel to drill down and see class-level scores</li>
+                        <li>Click a class node to open that file directly in the editor</li>
+                    </ol>
+                </div>
+
+                <div class="use-case">
+                    <h4>Use Case: Exploring ecosystem metrics</h4>
+                    <p><strong>Scenario:</strong> You want to understand your ecosystem's overall health and contract coverage.</p>
+                    <ol class="steps">
+                        <li>Open the heatmap</li>
+                        <li>Review TOTALS for overall scope (libraries, classes, LOC)</li>
+                        <li>Check CONTRACT COVERAGE for the pre/post/inv breakdown</li>
+                        <li>Note QUALITY METRICS - a healthy codebase has >5% contract density</li>
+                        <li>Use the force graph to visually identify outliers</li>
+                    </ol>
+                </div>
+
+                <div class="tip">
+                    Library names in the TOP 10 lists are clickable - click any library to drill down into its classes. Click a class node in the drill-down view to open that file.
+                </div>
+
+                <div class="warning">
+                    The heatmap requires the LSP server to scan your SIMPLE_* environment variables. Make sure your libraries have these set for accurate ecosystem-wide analysis.
                 </div>
             </article>
         </section>
