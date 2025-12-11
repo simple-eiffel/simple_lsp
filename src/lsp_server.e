@@ -67,7 +67,7 @@ feature {NONE} -- Initialization
 
 feature -- Constants
 
-	Version: STRING = "0.6.0"
+	Version: STRING = "0.7.4"
 			-- LSP server version (update on each release)
 
 feature -- Access
@@ -298,6 +298,8 @@ feature {NONE} -- Message Processing
 				handle_rename (a_msg)
 			elseif a_msg.method.same_string ("textDocument/prepareRename") then
 				handle_prepare_rename (a_msg)
+			elseif a_msg.method.same_string ("eiffel/dbcMetrics") then
+				handle_dbc_metrics (a_msg)
 			else
 				log_warning ("Unknown method: " + a_msg.method)
 			end
@@ -591,6 +593,182 @@ feature {NONE} -- Feature Handlers
 			send_response_array (a_msg.id, l_symbols)
 		end
 
+	handle_dbc_metrics (a_msg: LSP_MESSAGE)
+			-- Handle eiffel/dbcMetrics - returns DbC coverage metrics for all libraries
+		require
+			msg_not_void: a_msg /= Void
+			is_request: a_msg.is_request
+		local
+			l_result: SIMPLE_JSON_OBJECT
+		do
+			log_info ("=== DbC METRICS REQUEST RECEIVED ===")
+			log_info ("Request ID: " + a_msg.id.out)
+			l_result := collect_dbc_metrics
+			log_info ("=== DbC METRICS RESPONSE SENDING ===")
+			send_response (a_msg.id, l_result)
+			log_info ("=== DbC METRICS RESPONSE SENT ===")
+		end
+
+	collect_dbc_metrics: SIMPLE_JSON_OBJECT
+			-- Collect DbC metrics from all libraries in universe using shared DBC_ANALYZER
+		local
+			l_libs: SIMPLE_JSON_ARRAY
+			l_lib_obj: SIMPLE_JSON_OBJECT
+			l_classes: SIMPLE_JSON_ARRAY
+			l_class_obj: SIMPLE_JSON_OBJECT
+			l_analyzer: DBC_ANALYZER
+			l_dir: DIRECTORY
+			l_src_path: STRING
+			l_lib_score: INTEGER
+			l_lib_count: INTEGER
+		do
+			create Result.make
+			create l_libs.make
+			create l_analyzer.make
+
+			log_info ("=== COLLECTING DbC METRICS ===")
+			log_info ("Universe has " + universe.libraries.count.out + " libraries")
+
+			-- Analyze each library in universe
+			across universe.libraries as lib loop
+				l_lib_count := l_lib_count + 1
+				log_info ("Processing library " + l_lib_count.out + ": " + lib.name.to_string_8)
+				if not lib.resolved_path.is_empty then
+					-- Reset analyzer for each library
+					l_analyzer.reset
+
+					-- Scan library's src directory
+					l_src_path := lib.resolved_path.to_string_8 + "/src"
+					create l_dir.make (l_src_path)
+					if l_dir.exists then
+						scan_directory_for_dbc (l_dir, lib.name.to_string_8, l_analyzer)
+					end
+
+					-- Calculate library score
+					if l_analyzer.total_features > 0 then
+						l_lib_score := ((l_analyzer.total_with_require + l_analyzer.total_with_ensure) * 50) // l_analyzer.total_features
+						l_lib_score := l_lib_score.min (100)
+					else
+						l_lib_score := 0
+					end
+
+					log_info ("  " + lib.name.to_string_8 + ": score=" + l_lib_score.out +
+					          " features=" + l_analyzer.total_features.out +
+					          " require=" + l_analyzer.total_with_require.out +
+					          " ensure=" + l_analyzer.total_with_ensure.out)
+
+					-- Build library JSON
+					create l_lib_obj.make
+					l_lib_obj.put_string (lib.name.to_string_8, "name").do_nothing
+					l_lib_obj.put_string (lib.resolved_path.to_string_8, "path").do_nothing
+					l_lib_obj.put_integer (l_lib_score, "score").do_nothing
+					l_lib_obj.put_string (l_analyzer.color_for_score (l_lib_score), "color").do_nothing
+					l_lib_obj.put_integer (l_analyzer.total_classes, "class_count").do_nothing
+					l_lib_obj.put_integer (l_analyzer.total_features, "feature_count").do_nothing
+					l_lib_obj.put_integer (l_analyzer.total_with_require, "require_count").do_nothing
+					l_lib_obj.put_integer (l_analyzer.total_with_ensure, "ensure_count").do_nothing
+
+					-- Add classes
+					create l_classes.make
+					across l_analyzer.class_results as cls loop
+						create l_class_obj.make
+						l_class_obj.put_string (cls.class_name, "name").do_nothing
+						l_class_obj.put_string (cls.file_path, "path").do_nothing
+						l_class_obj.put_integer (cls.score, "score").do_nothing
+						l_class_obj.put_string (l_analyzer.color_for_score (cls.score), "color").do_nothing
+						l_class_obj.put_integer (cls.feature_count, "features").do_nothing
+						l_class_obj.put_integer (cls.require_count, "requires").do_nothing
+						l_class_obj.put_integer (cls.ensure_count, "ensures").do_nothing
+						l_class_obj.put_boolean (cls.has_invariant, "has_invariant").do_nothing
+						l_classes.add_object (l_class_obj).do_nothing
+					end
+					l_lib_obj.put_array (l_classes, "classes").do_nothing
+					l_libs.add_object (l_lib_obj).do_nothing
+				end
+			end
+
+			-- Now collect overall totals by analyzing all libraries together
+			l_analyzer.reset
+			across universe.libraries as lib loop
+				if not lib.resolved_path.is_empty then
+					l_src_path := lib.resolved_path.to_string_8 + "/src"
+					create l_dir.make (l_src_path)
+					if l_dir.exists then
+						scan_directory_for_dbc (l_dir, lib.name.to_string_8, l_analyzer)
+					end
+				end
+			end
+
+			-- Add totals
+			Result.put_integer (l_analyzer.total_features, "total_features").do_nothing
+			Result.put_integer (l_analyzer.total_with_require, "total_with_require").do_nothing
+			Result.put_integer (l_analyzer.total_with_ensure, "total_with_ensure").do_nothing
+			Result.put_integer (l_analyzer.total_classes, "total_classes").do_nothing
+			Result.put_integer (l_analyzer.total_with_invariant, "total_with_invariant").do_nothing
+			Result.put_integer (l_analyzer.total_score, "overall_score").do_nothing
+			Result.put_array (l_libs, "libraries").do_nothing
+
+			log_info ("=== DbC METRICS SUMMARY ===")
+			log_info ("Total features: " + l_analyzer.total_features.out)
+			log_info ("With require: " + l_analyzer.total_with_require.out)
+			log_info ("With ensure: " + l_analyzer.total_with_ensure.out)
+			log_info ("Total classes: " + l_analyzer.total_classes.out)
+			log_info ("With invariant: " + l_analyzer.total_with_invariant.out)
+			log_info ("Overall score: " + l_analyzer.total_score.out + "%%")
+			log_info ("Libraries analyzed: " + l_lib_count.out)
+			log_info ("=== END DbC METRICS ===")
+		end
+
+	scan_directory_for_dbc (a_dir: DIRECTORY; a_lib_name: STRING; a_analyzer: DBC_ANALYZER)
+			-- Recursively scan directory for .e files and analyze with shared analyzer
+		local
+			l_entries: ARRAYED_LIST [PATH]
+			l_path, l_entry_name: STRING
+			l_subdir: DIRECTORY
+			l_file: SIMPLE_FILE
+			l_class_name: STRING
+			l_retried: BOOLEAN
+		do
+			if l_retried then
+				log_warning ("Exception scanning directory: " + a_dir.path.name.to_string_8)
+			else
+				a_dir.open_read
+				l_entries := a_dir.entries
+				a_dir.close
+
+				across l_entries as entry loop
+					l_entry_name := entry.name.to_string_8
+					if not l_entry_name.same_string (".") and then not l_entry_name.same_string ("..") then
+						l_path := a_dir.path.name.to_string_8 + "/" + l_entry_name
+						create l_subdir.make (l_path)
+						if l_subdir.exists then
+							-- Recurse into subdirectory (skip hidden dirs and EIFGENs)
+							if not l_entry_name.starts_with (".") and not l_entry_name.same_string ("EIFGENs") then
+								scan_directory_for_dbc (l_subdir, a_lib_name, a_analyzer)
+							end
+						elseif l_entry_name.ends_with (".e") then
+							-- Analyze Eiffel file using shared analyzer
+							create l_file.make (l_path)
+							if attached l_file.read_text as l_content then
+								-- Extract class name from filename
+								l_class_name := l_entry_name.twin
+								if l_class_name.ends_with (".e") then
+									l_class_name := l_class_name.substring (1, l_class_name.count - 2)
+								end
+								l_class_name.to_upper
+
+								-- Use shared DBC_ANALYZER
+								a_analyzer.analyze_file_content (l_content.to_string_8, l_class_name, a_lib_name, l_path)
+							end
+						end
+					end
+				end
+			end
+		rescue
+			l_retried := True
+			retry
+		end
+
 feature {NONE} -- Response Helpers
 
 	send_response (a_id: INTEGER; a_result: detachable SIMPLE_JSON_OBJECT)
@@ -814,8 +992,12 @@ feature {NONE} -- Indexing
 			l_class_id: INTEGER
 			l_mtime: INTEGER
 			l_uri: STRING
+			l_retried: BOOLEAN
 		do
-			create l_file.make (a_path)
+			if l_retried then
+				log_warning ("Parser exception in: " + a_path + " (skipping file)")
+			else
+				create l_file.make (a_path)
 			if l_file.exists then
 				l_mtime := l_file.modified_timestamp
 				l_uri := path_to_uri (a_path)
@@ -892,6 +1074,10 @@ feature {NONE} -- Indexing
 			else
 				log_warning ("File not found: " + a_path)
 			end
+			end -- if not l_retried
+		rescue
+			l_retried := True
+			retry
 		end
 
 feature {NONE} -- Type Reference Extraction
