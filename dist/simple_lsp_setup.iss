@@ -7,7 +7,7 @@
 ; ============================================================================
 
 #define MyAppName "Eiffel LSP"
-#define MyAppVersion "0.6.0"
+#define MyAppVersion "0.7.4"
 #define MyAppPublisher "Simple Eiffel"
 #define MyAppURL "https://github.com/simple-eiffel/simple_lsp"
 #define MyAppExeName "simple_lsp.exe"
