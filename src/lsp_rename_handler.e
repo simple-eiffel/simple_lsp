@@ -169,7 +169,7 @@ feature -- Operations
 				log_debug ("find_all_occurrences: checking file " + l_path)
 				create l_file.make (l_path)
 				if l_file.exists then
-					l_content := l_file.read_text.to_string_8
+					l_content := l_file.load.to_string_8
 					l_lines := l_content.split ('%N')
 					-- Use from-loop for lines
 					from j := 1 until j > l_lines.count loop

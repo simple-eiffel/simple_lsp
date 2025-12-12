@@ -142,7 +142,7 @@ feature -- Operations
 			else
 				create l_file.make (a_path)
 				if l_file.exists then
-					l_content := l_file.read_text.to_string_8
+					l_content := l_file.load.to_string_8
 					log_debug ("Read from disk for: " + a_path)
 				end
 			end
@@ -275,7 +275,7 @@ feature {NONE} -- Implementation
 		do
 			create l_file.make (a_path)
 			if l_file.exists then
-				l_lines := l_file.read_lines
+				l_lines := l_file.lines
 				if a_line >= 0 and a_line < l_lines.count then
 					l_line_text := l_lines.i_th (a_line + 1).to_string_8
 

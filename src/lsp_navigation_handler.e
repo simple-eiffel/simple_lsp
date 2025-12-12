@@ -120,7 +120,7 @@ feature -- Document Symbol Operations
 
 			create l_file.make (a_path)
 			if l_file.exists then
-				l_content := l_file.read_text.to_string_8
+				l_content := l_file.load.to_string_8
 				l_ast := parser.parse_string (l_content)
 
 				across l_ast.classes as cls loop

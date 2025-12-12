@@ -84,7 +84,7 @@ feature {NONE} -- Initialization
 
 feature -- Constants
 
-	Version: STRING = "0.8.5"
+	Version: STRING = "0.8.7"
 			-- LSP server version (update on each release)
 
 feature -- Access
@@ -237,7 +237,8 @@ feature {NONE} -- Message I/O
 
 	write_message (a_json: STRING)
 			-- Write LSP message to stdout
-			-- Note: Use %N only - Windows console auto-converts to %R%N
+			-- Note: Use %N only - Windows console auto-converts LF to CRLF
+			-- Using explicit %R%N causes double-CR on Windows (%R%R%N)
 		require
 			json_not_void: a_json /= Void
 			json_not_empty: not a_json.is_empty
@@ -246,7 +247,6 @@ feature {NONE} -- Message I/O
 		do
 			log_debug ("Sending: " + a_json.head (200))
 			-- Build complete message with header
-			-- LSP requires CRLF but Windows auto-converts LF to CRLF on console output
 			create l_header.make (50)
 			l_header.append ("Content-Length: ")
 			l_header.append_integer (a_json.count)
@@ -290,7 +290,7 @@ feature {NONE} -- Message Processing
 			l_parsed: detachable SIMPLE_JSON_VALUE
 			l_msg: LSP_MESSAGE
 		do
-			l_parsed := json.parse (a_content)
+			l_parsed := json.parse_message (a_content)
 			if attached l_parsed and then l_parsed.is_object then
 				create l_msg.make_from_json (l_parsed.as_object)
 				log_info ("Processing: " + l_msg.method + " (id=" + l_msg.id.out + ")")
@@ -842,7 +842,7 @@ feature {NONE} -- Feature Handlers
 						elseif l_entry_name.ends_with (".e") then
 							-- Analyze Eiffel file using shared analyzer
 							create l_file.make (l_path)
-							if attached l_file.read_text as l_content then
+							if attached l_file.load as l_content then
 								-- Extract class name from filename
 								l_class_name := l_entry_name.twin
 								if l_class_name.ends_with (".e") then
@@ -1096,7 +1096,7 @@ feature {NONE} -- Indexing
 				l_uri := path_to_uri (a_path)
 
 				log_debug ("Indexing: " + a_path)
-				l_content := l_file.read_text.to_string_8
+				l_content := l_file.load.to_string_8
 				l_ast := parser.parse_string (l_content)
 
 				-- Always publish diagnostics (either errors or clear)
@@ -1985,7 +1985,7 @@ feature {NONE} -- Rename Symbol
 				log_debug ("find_all_occurrences: checking file " + l_path)
 				create l_file.make (l_path)
 				if l_file.exists then
-					l_content := l_file.read_text.to_string_8
+					l_content := l_file.load.to_string_8
 					l_lines := l_content.split ('%N')
 					-- Use from-loop for lines
 					from j := 1 until j > l_lines.count loop
@@ -2056,7 +2056,7 @@ feature {NONE} -- Rename Symbol
 		do
 			create l_file.make (a_path)
 			if l_file.exists then
-				l_lines := l_file.read_lines
+				l_lines := l_file.lines
 				if a_line >= 0 and a_line < l_lines.count then
 					l_line_text := l_lines.i_th (a_line + 1).to_string_8
 					l_pos := a_col + 1
@@ -2455,7 +2455,7 @@ feature {NONE} -- Path Helpers
 			create l_file.make (a_path)
 			if l_file.exists then
 				log_debug ("File exists, reading lines...")
-				l_lines := l_file.read_lines
+				l_lines := l_file.lines
 				log_debug ("Read " + l_lines.count.out + " lines")
 				if a_line >= 0 and a_line < l_lines.count then
 					l_line_text := l_lines.i_th (a_line + 1).to_string_8 -- LSP is 0-based

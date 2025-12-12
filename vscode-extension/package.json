@@ -1,8 +1,8 @@
 {
   "name": "eiffel-lsp",
-  "displayName": "Eiffel Language Support",
+  "displayName": "Eiffel LSP (Simple Eiffel)",
   "description": "Eiffel language support via simple_lsp - Go to Definition, Hover, Completion, Build",
-  "version": "0.8.5",
+  "version": "0.8.7",
   "publisher": "simple-eiffel",
   "repository": {
     "type": "git",

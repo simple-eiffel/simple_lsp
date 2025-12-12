@@ -37,7 +37,7 @@ feature -- Class Operations
 			name_not_empty: a_name /= Void and then not a_name.is_empty
 			path_not_empty: a_file_path /= Void and then not a_file_path.is_empty
 		do
-			db.execute_with_args (
+			db.run_sql_with (
 				"INSERT OR REPLACE INTO classes (name, file_path, line, column, file_mtime) VALUES (?, ?, ?, ?, ?)",
 				<<a_name, a_file_path, a_line, a_column, a_mtime>>)
 		end
@@ -50,7 +50,7 @@ feature -- Class Operations
 			name_not_empty: a_name /= Void and then not a_name.is_empty
 			path_not_empty: a_file_path /= Void and then not a_file_path.is_empty
 		do
-			db.execute_with_args (
+			db.run_sql_with (
 				"INSERT OR REPLACE INTO classes (name, file_path, line, column, is_deferred, is_expanded, is_frozen, header_comment, file_mtime) " +
 				"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 				<<a_name, a_file_path, a_line, a_column,
@@ -65,7 +65,7 @@ feature -- Class Operations
 		local
 			l_result: SIMPLE_SQL_RESULT
 		do
-			l_result := db.query_with_args ("SELECT id, file_path, line, column FROM classes WHERE name = ? COLLATE NOCASE", <<a_name>>)
+			l_result := db.fetch_with ("SELECT id, file_path, line, column FROM classes WHERE name = ? COLLATE NOCASE", <<a_name>>)
 			if not l_result.is_empty then
 				Result := [l_result.first.integer_value ("id"),
 				           l_result.first.string_value ("file_path").to_string_8,
@@ -81,7 +81,7 @@ feature -- Class Operations
 		local
 			l_result: SIMPLE_SQL_RESULT
 		do
-			l_result := db.query_with_args ("SELECT id FROM classes WHERE name = ? COLLATE NOCASE", <<a_name>>)
+			l_result := db.fetch_with ("SELECT id FROM classes WHERE name = ? COLLATE NOCASE", <<a_name>>)
 			if not l_result.is_empty then
 				Result := l_result.first.integer_value ("id")
 			end
@@ -93,7 +93,7 @@ feature -- Class Operations
 			l_result: SIMPLE_SQL_RESULT
 		do
 			create Result.make (100)
-			l_result := db.query ("SELECT name FROM classes ORDER BY name")
+			l_result := db.fetch ("SELECT name FROM classes ORDER BY name")
 			across l_result.rows as row loop
 				Result.extend (row.string_value ("name").to_string_8)
 			end
@@ -108,7 +108,7 @@ feature -- Feature Operations
 			name_not_empty: a_name /= Void and then not a_name.is_empty
 			kind_not_empty: a_kind /= Void and then not a_kind.is_empty
 		do
-			db.execute_with_args (
+			db.run_sql_with (
 				"INSERT INTO features (class_id, name, kind, line, column) VALUES (?, ?, ?, ?, ?)",
 				<<a_class_id, a_name, a_kind, a_line, a_column>>)
 		end
@@ -121,7 +121,7 @@ feature -- Feature Operations
 			class_exists: a_class_id > 0
 			name_not_empty: a_name /= Void and then not a_name.is_empty
 		do
-			db.execute_with_args (
+			db.run_sql_with (
 				"INSERT INTO features (class_id, name, kind, line, column, return_type, signature, " +
 				"precondition, postcondition, header_comment, is_deferred, is_frozen, export_status) " +
 				"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -138,7 +138,7 @@ feature -- Feature Operations
 		local
 			l_result: SIMPLE_SQL_RESULT
 		do
-			l_result := db.query_with_args (
+			l_result := db.fetch_with (
 				"SELECT c.file_path, f.line, f.column, f.signature, f.header_comment " +
 				"FROM features f JOIN classes c ON f.class_id = c.id " +
 				"WHERE c.name = ? COLLATE NOCASE AND f.name = ? COLLATE NOCASE",
@@ -160,7 +160,7 @@ feature -- Feature Operations
 			l_result: SIMPLE_SQL_RESULT
 		do
 			create Result.make (20)
-			l_result := db.query_with_args (
+			l_result := db.fetch_with (
 				"SELECT f.name, f.kind, f.signature, f.line " +
 				"FROM features f JOIN classes c ON f.class_id = c.id " +
 				"WHERE c.name = ? COLLATE NOCASE ORDER BY f.line",
@@ -181,7 +181,7 @@ feature -- Feature Operations
 			l_result: SIMPLE_SQL_RESULT
 		do
 			create Result.make (10)
-			l_result := db.query_with_args (
+			l_result := db.fetch_with (
 				"SELECT c.name as class_name, c.file_path, f.line " +
 				"FROM features f JOIN classes c ON f.class_id = c.id " +
 				"WHERE f.name = ? COLLATE NOCASE",
@@ -199,7 +199,7 @@ feature -- Feature Operations
 			l_result: SIMPLE_SQL_RESULT
 		do
 			create Result.make (200)
-			l_result := db.query (
+			l_result := db.fetch (
 				"SELECT f.name, c.name as class_name, f.kind, f.signature, f.line " +
 				"FROM features f JOIN classes c ON f.class_id = c.id " +
 				"ORDER BY f.name")
@@ -224,7 +224,7 @@ feature -- Feature Operations
 			l_pattern := "%%" + a_query + "%%"
 
 			-- Search classes
-			l_result := db.query_with_args (
+			l_result := db.fetch_with (
 				"SELECT name, 'class' as kind, '' as container, file_path, line FROM classes " +
 				"WHERE name LIKE ? COLLATE NOCASE " +
 				"UNION ALL " +
@@ -251,7 +251,7 @@ feature -- Type Reference Operations (Client/Supplier)
 			class_exists: a_from_class_id > 0
 			type_not_empty: a_to_type_name /= Void and then not a_to_type_name.is_empty
 		do
-			db.execute_with_args (
+			db.run_sql_with (
 				"INSERT OR IGNORE INTO type_references (from_class_id, to_type_name, context) VALUES (?, ?, ?)",
 				<<a_from_class_id, a_to_type_name.as_upper, a_context>>)
 		end
@@ -264,7 +264,7 @@ feature -- Type Reference Operations (Client/Supplier)
 			l_result: SIMPLE_SQL_RESULT
 		do
 			create Result.make (10)
-			l_result := db.query_with_args (
+			l_result := db.fetch_with (
 				"SELECT DISTINCT tr.to_type_name FROM type_references tr " +
 				"JOIN classes c ON tr.from_class_id = c.id " +
 				"WHERE c.name = ? COLLATE NOCASE " +
@@ -283,7 +283,7 @@ feature -- Type Reference Operations (Client/Supplier)
 			l_result: SIMPLE_SQL_RESULT
 		do
 			create Result.make (10)
-			l_result := db.query_with_args (
+			l_result := db.fetch_with (
 				"SELECT DISTINCT c.name FROM type_references tr " +
 				"JOIN classes c ON tr.from_class_id = c.id " +
 				"WHERE tr.to_type_name = ? COLLATE NOCASE " +
@@ -299,7 +299,7 @@ feature -- Type Reference Operations (Client/Supplier)
 		require
 			class_exists: a_class_id > 0
 		do
-			db.execute_with_args ("DELETE FROM type_references WHERE from_class_id = ?", <<a_class_id>>)
+			db.run_sql_with ("DELETE FROM type_references WHERE from_class_id = ?", <<a_class_id>>)
 		end
 
 feature -- Inheritance Operations
@@ -310,7 +310,7 @@ feature -- Inheritance Operations
 			child_exists: a_child_id > 0
 			parent_not_empty: a_parent_name /= Void and then not a_parent_name.is_empty
 		do
-			db.execute_with_args (
+			db.run_sql_with (
 				"INSERT INTO inheritance (child_id, parent_name) VALUES (?, ?)",
 				<<a_child_id, a_parent_name>>)
 		end
@@ -323,7 +323,7 @@ feature -- Inheritance Operations
 			l_result: SIMPLE_SQL_RESULT
 		do
 			create Result.make (5)
-			l_result := db.query_with_args (
+			l_result := db.fetch_with (
 				"SELECT i.parent_name FROM inheritance i " +
 				"JOIN classes c ON i.child_id = c.id " +
 				"WHERE c.name = ? COLLATE NOCASE",
@@ -342,7 +342,7 @@ feature -- File Operations
 		local
 			l_result: SIMPLE_SQL_RESULT
 		do
-			l_result := db.query_with_args ("SELECT file_mtime FROM classes WHERE file_path = ? LIMIT 1", <<a_path>>)
+			l_result := db.fetch_with ("SELECT file_mtime FROM classes WHERE file_path = ? LIMIT 1", <<a_path>>)
 			if not l_result.is_empty then
 				Result := l_result.first.integer_64_value ("file_mtime")
 			end
@@ -354,7 +354,7 @@ feature -- File Operations
 			path_not_empty: a_path /= Void and then not a_path.is_empty
 		do
 			-- Features and inheritance are deleted by CASCADE
-			db.execute_with_args ("DELETE FROM classes WHERE file_path = ?", <<a_path>>)
+			db.run_sql_with ("DELETE FROM classes WHERE file_path = ?", <<a_path>>)
 		end
 
 feature -- Diagnostics
@@ -365,7 +365,7 @@ feature -- Diagnostics
 			path_not_empty: a_file_path /= Void and then not a_file_path.is_empty
 			message_not_empty: a_message /= Void and then not a_message.is_empty
 		do
-			db.execute_with_args (
+			db.run_sql_with (
 				"INSERT INTO parse_errors (file_path, line, column, message, severity) VALUES (?, ?, ?, ?, ?)",
 				<<a_file_path, a_line, a_column, a_message, a_severity>>)
 		end
@@ -378,7 +378,7 @@ feature -- Diagnostics
 			l_result: SIMPLE_SQL_RESULT
 		do
 			create Result.make (5)
-			l_result := db.query_with_args (
+			l_result := db.fetch_with (
 				"SELECT line, column, message, severity FROM parse_errors WHERE file_path = ?",
 				<<a_path>>)
 			across l_result.rows as row loop
@@ -394,7 +394,7 @@ feature -- Diagnostics
 		require
 			path_not_empty: a_path /= Void and then not a_path.is_empty
 		do
-			db.execute_with_args ("DELETE FROM parse_errors WHERE file_path = ?", <<a_path>>)
+			db.run_sql_with ("DELETE FROM parse_errors WHERE file_path = ?", <<a_path>>)
 		end
 
 	all_file_paths: ARRAYED_LIST [STRING]
@@ -403,7 +403,7 @@ feature -- Diagnostics
 			l_result: SIMPLE_SQL_RESULT
 		do
 			create Result.make (50)
-			l_result := db.query ("SELECT DISTINCT file_path FROM classes ORDER BY file_path")
+			l_result := db.fetch ("SELECT DISTINCT file_path FROM classes ORDER BY file_path")
 			across l_result.rows as row loop
 				Result.extend (row.string_value ("file_path").to_string_8)
 			end
@@ -422,9 +422,9 @@ feature {NONE} -- Schema
 	ensure_schema
 			-- Create tables if they don't exist
 		do
-			db.execute ("PRAGMA foreign_keys = ON")
+			db.run_sql ("PRAGMA foreign_keys = ON")
 
-			db.execute ("CREATE TABLE IF NOT EXISTS classes (" +
+			db.run_sql ("CREATE TABLE IF NOT EXISTS classes (" +
 				"id INTEGER PRIMARY KEY, " +
 				"name TEXT NOT NULL UNIQUE, " +
 				"file_path TEXT NOT NULL, " +
@@ -437,10 +437,10 @@ feature {NONE} -- Schema
 				"file_mtime INTEGER NOT NULL DEFAULT 0" +
 				")")
 
-			db.execute ("CREATE INDEX IF NOT EXISTS idx_classes_name ON classes(name)")
-			db.execute ("CREATE INDEX IF NOT EXISTS idx_classes_file ON classes(file_path)")
+			db.run_sql ("CREATE INDEX IF NOT EXISTS idx_classes_name ON classes(name)")
+			db.run_sql ("CREATE INDEX IF NOT EXISTS idx_classes_file ON classes(file_path)")
 
-			db.execute ("CREATE TABLE IF NOT EXISTS features (" +
+			db.run_sql ("CREATE TABLE IF NOT EXISTS features (" +
 				"id INTEGER PRIMARY KEY, " +
 				"class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE, " +
 				"name TEXT NOT NULL, " +
@@ -457,10 +457,10 @@ feature {NONE} -- Schema
 				"export_status TEXT DEFAULT 'ANY'" +
 				")")
 
-			db.execute ("CREATE INDEX IF NOT EXISTS idx_features_class ON features(class_id)")
-			db.execute ("CREATE INDEX IF NOT EXISTS idx_features_name ON features(name)")
+			db.run_sql ("CREATE INDEX IF NOT EXISTS idx_features_class ON features(class_id)")
+			db.run_sql ("CREATE INDEX IF NOT EXISTS idx_features_name ON features(name)")
 
-			db.execute ("CREATE TABLE IF NOT EXISTS inheritance (" +
+			db.run_sql ("CREATE TABLE IF NOT EXISTS inheritance (" +
 				"id INTEGER PRIMARY KEY, " +
 				"child_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE, " +
 				"parent_name TEXT NOT NULL, " +
@@ -471,9 +471,9 @@ feature {NONE} -- Schema
 				"select_list TEXT" +
 				")")
 
-			db.execute ("CREATE INDEX IF NOT EXISTS idx_inheritance_child ON inheritance(child_id)")
+			db.run_sql ("CREATE INDEX IF NOT EXISTS idx_inheritance_child ON inheritance(child_id)")
 
-			db.execute ("CREATE TABLE IF NOT EXISTS arguments (" +
+			db.run_sql ("CREATE TABLE IF NOT EXISTS arguments (" +
 				"id INTEGER PRIMARY KEY, " +
 				"feature_id INTEGER NOT NULL REFERENCES features(id) ON DELETE CASCADE, " +
 				"name TEXT NOT NULL, " +
@@ -481,7 +481,7 @@ feature {NONE} -- Schema
 				"position INTEGER NOT NULL" +
 				")")
 
-			db.execute ("CREATE TABLE IF NOT EXISTS locals (" +
+			db.run_sql ("CREATE TABLE IF NOT EXISTS locals (" +
 				"id INTEGER PRIMARY KEY, " +
 				"feature_id INTEGER NOT NULL REFERENCES features(id) ON DELETE CASCADE, " +
 				"name TEXT NOT NULL, " +
@@ -489,7 +489,7 @@ feature {NONE} -- Schema
 				"line INTEGER NOT NULL" +
 				")")
 
-			db.execute ("CREATE TABLE IF NOT EXISTS parse_errors (" +
+			db.run_sql ("CREATE TABLE IF NOT EXISTS parse_errors (" +
 				"id INTEGER PRIMARY KEY, " +
 				"file_path TEXT NOT NULL, " +
 				"line INTEGER NOT NULL, " +
@@ -498,10 +498,10 @@ feature {NONE} -- Schema
 				"severity TEXT DEFAULT 'error'" +
 				")")
 
-			db.execute ("CREATE INDEX IF NOT EXISTS idx_errors_file ON parse_errors(file_path)")
+			db.run_sql ("CREATE INDEX IF NOT EXISTS idx_errors_file ON parse_errors(file_path)")
 
 			-- Type references table for client/supplier relationships
-			db.execute ("CREATE TABLE IF NOT EXISTS type_references (" +
+			db.run_sql ("CREATE TABLE IF NOT EXISTS type_references (" +
 				"id INTEGER PRIMARY KEY, " +
 				"from_class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE, " +
 				"to_type_name TEXT NOT NULL, " +
@@ -509,8 +509,8 @@ feature {NONE} -- Schema
 				"UNIQUE(from_class_id, to_type_name, context)" +
 				")")
 
-			db.execute ("CREATE INDEX IF NOT EXISTS idx_typeref_from ON type_references(from_class_id)")
-			db.execute ("CREATE INDEX IF NOT EXISTS idx_typeref_to ON type_references(to_type_name)")
+			db.run_sql ("CREATE INDEX IF NOT EXISTS idx_typeref_from ON type_references(from_class_id)")
+			db.run_sql ("CREATE INDEX IF NOT EXISTS idx_typeref_to ON type_references(to_type_name)")
 		end
 
 feature {NONE} -- Implementation
