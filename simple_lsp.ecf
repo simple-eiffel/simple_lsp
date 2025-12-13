@@ -37,8 +37,9 @@
 		</capability>
 	</target>
 	<target name="simple_lsp_tests" extends="simple_lsp">
-		<root class="LSP_TEST_SUITE" feature="default_create"/>
+		<root class="TEST_APP" feature="make"/>
 		<library name="testing" location="$ISE_LIBRARY\library\testing\testing.ecf"/>
+		<library name="simple_testing" location="$SIMPLE_TESTING\simple_testing.ecf"/>
 		<cluster name="test_classes" location=".\testing\" recursive="true"/>
 	</target>
 </system>
