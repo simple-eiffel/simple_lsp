@@ -34,7 +34,7 @@ feature -- Arguments
 	argument_count: INTEGER
 			-- Number of command line arguments
 		external
-			"C inline"
+			"C inline use %"eif_argv.h%""
 		alias
 			"return eif_argc - 1;"
 		end
@@ -57,7 +57,7 @@ feature {NONE} -- C externals
 	c_argument (n: INTEGER): POINTER
 			-- Get C argv[n]
 		external
-			"C inline"
+			"C inline use %"eif_argv.h%""
 		alias
 			"return eif_argv[$n];"
 		end
