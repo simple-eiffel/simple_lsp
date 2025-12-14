@@ -186,28 +186,10 @@ feature {NONE} -- Implementation
 	current_timestamp: STRING
 			-- Current timestamp in ISO format
 		local
-			l_time: TIME
-			l_date: DATE
+			l_dt: SIMPLE_DATE_TIME
 		do
-			create l_date.make_now
-			create l_time.make_now
-			create Result.make (25)
-			Result.append (l_date.year.out)
-			Result.append ("-")
-			if l_date.month < 10 then Result.append ("0") end
-			Result.append (l_date.month.out)
-			Result.append ("-")
-			if l_date.day < 10 then Result.append ("0") end
-			Result.append (l_date.day.out)
-			Result.append ("T")
-			if l_time.hour < 10 then Result.append ("0") end
-			Result.append (l_time.hour.out)
-			Result.append (":")
-			if l_time.minute < 10 then Result.append ("0") end
-			Result.append (l_time.minute.out)
-			Result.append (":")
-			if l_time.second < 10 then Result.append ("0") end
-			Result.append (l_time.second.out)
+			create l_dt.make_now
+			Result := l_dt.to_iso8601
 		ensure
 			result_not_void: Result /= Void
 			result_not_empty: not Result.is_empty
