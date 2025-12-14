@@ -1,0 +1,9 @@
+{
+  "name": "simple_lsp",
+  "version": "0.1.0",
+  "description": "Eiffel Language Server Protocol implementation for VS Code",
+  "author": "Larry Rix",
+  "license": "MIT",
+  "category": "tools",
+  "keywords": ["lsp", "language-server", "ide", "editor"]
+}
