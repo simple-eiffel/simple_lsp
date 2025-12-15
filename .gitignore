@@ -1,5 +1,8 @@
-# Eiffel compiled/generated files
+# Eiffel build artifacts
 EIFGENs/
+Documentation/
+
+# Compiled files
 *.melted
 *.o
 *.obj
@@ -21,14 +24,3 @@ EIFGENs/
 .DS_Store
 Thumbs.db
 
-# LSP runtime files
-.eiffel_lsp/
-exception_trace.log
-
-# VS Code extension build output
-vscode-extension/node_modules/
-vscode-extension/out/
-vscode-extension/*.vsix
-
-# Inno Setup output
-dist/output/
