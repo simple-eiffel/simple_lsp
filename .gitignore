@@ -24,3 +24,28 @@ Documentation/
 .DS_Store
 Thumbs.db
 
+
+# Windows resource files (generated)
+*.rc
+
+# Log files
+*.log
+exception_trace.log
+
+# LSP cache
+.eiffel_lsp/
+-/
+
+# Database files (local)
+*.db
+
+# Node modules (for vscode extensions)
+node_modules/
+out/
+
+# VSIX packages (built artifacts)
+*.vsix
+
+# Local data
+EIFDATA/
+output/
