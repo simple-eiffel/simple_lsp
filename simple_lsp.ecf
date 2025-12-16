@@ -12,15 +12,15 @@
 			<void_safety support="all" use="all"/>
 		</capability>
 		<library name="base" location="$ISE_LIBRARY\library\base\base.ecf"/>
-		<library name="simple_datetime" location="$SIMPLE_DATETIME/simple_datetime.ecf"/>
-		<library name="simple_json" location="$SIMPLE_JSON\simple_json.ecf"/>
-		<library name="simple_sql" location="$SIMPLE_SQL\simple_sql.ecf"/>
-		<library name="simple_process" location="$SIMPLE_PROCESS\simple_process.ecf"/>
-		<library name="simple_file" location="$SIMPLE_FILE\simple_file.ecf"/>
-		<library name="simple_eiffel_parser" location="$SIMPLE_EIFFEL_PARSER\simple_eiffel_parser.ecf"/>
-		<library name="simple_xml" location="$SIMPLE_XML\simple_xml.ecf"/>
-		<library name="simple_toml" location="$SIMPLE_TOML\simple_toml.ecf"/>
-		<library name="simple_ucf" location="$SIMPLE_UCF\simple_ucf.ecf"/>
+		<library name="simple_datetime" location="$SIMPLE_EIFFEL/simple_datetime/simple_datetime.ecf"/>
+		<library name="simple_json" location="$SIMPLE_EIFFEL/simple_json/simple_json.ecf"/>
+		<library name="simple_sql" location="$SIMPLE_EIFFEL/simple_sql/simple_sql.ecf"/>
+		<library name="simple_process" location="$SIMPLE_EIFFEL/simple_process/simple_process.ecf"/>
+		<library name="simple_file" location="$SIMPLE_EIFFEL/simple_file/simple_file.ecf"/>
+		<library name="simple_eiffel_parser" location="$SIMPLE_EIFFEL/simple_eiffel_parser/simple_eiffel_parser.ecf"/>
+		<library name="simple_xml" location="$SIMPLE_EIFFEL/simple_xml/simple_xml.ecf"/>
+		<library name="simple_toml" location="$SIMPLE_EIFFEL/simple_toml/simple_toml.ecf"/>
+		<library name="simple_ucf" location="$SIMPLE_EIFFEL/simple_ucf/simple_ucf.ecf"/>
 		<cluster name="src" location=".\src\" recursive="true"/>
 	</target>
 	<target name="simple_lsp_exe" extends="simple_lsp">
@@ -39,7 +39,7 @@
 	<target name="simple_lsp_tests" extends="simple_lsp">
 		<root class="TEST_APP" feature="make"/>
 		<library name="testing" location="$ISE_LIBRARY\library\testing\testing.ecf"/>
-		<library name="simple_testing" location="$SIMPLE_TESTING\simple_testing.ecf"/>
+		<library name="simple_testing" location="$SIMPLE_EIFFEL/simple_testing/simple_testing.ecf"/>
 		<cluster name="test_classes" location=".\testing\" recursive="true"/>
 	</target>
 </system>
