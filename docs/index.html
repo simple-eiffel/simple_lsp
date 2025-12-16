@@ -416,10 +416,10 @@ eiffel/runAllTests   - Run all discovered tests</code></pre>
             </ul>
 
             <h3>Build Commands</h3>
-<pre><code><span class="comment"># Set environment variables for simple_* libraries</span>
-<span class="keyword">export</span> SIMPLE_JSON=/path/to/simple_json
-<span class="keyword">export</span> SIMPLE_SQL=/path/to/simple_sql
-<span class="comment"># ... etc</span>
+<pre><code><span class="comment"># Set the SIMPLE_EIFFEL environment variable</span>
+<span class="keyword">export</span> SIMPLE_EIFFEL=/d/prod
+# All simple_* libraries are under this path
+
 
 <span class="comment"># Compile LSP server (finalized with contracts)</span>
 <span class="keyword">cd</span> /path/to/simple_lsp
