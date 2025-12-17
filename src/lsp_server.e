@@ -32,7 +32,7 @@ feature {NONE} -- Initialization
 
 			create symbol_db.make (l_db_dir + "/symbols.db")
 			create parser.make
-			create logger.make (l_db_dir + "/lsp.log")
+			create logger.make_to_file (l_db_dir + "/lsp.log")
 			create document_cache.make (10)
 			create eifgens_parser.default_create
 			create rename_handler.make (symbol_db, logger)
@@ -407,7 +407,7 @@ feature {NONE} -- Lifecycle Handlers
 					l_db_dir := workspace_root + "/.eiffel_lsp"
 					ensure_directory (l_db_dir)
 					logger.close
-					create logger.make (l_db_dir + "/lsp.log")
+					create logger.make_to_file (l_db_dir + "/lsp.log")
 					symbol_db.close
 					create symbol_db.make (l_db_dir + "/symbols.db")
 					-- Re-create handlers with new database and logger references
