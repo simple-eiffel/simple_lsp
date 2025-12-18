@@ -108,6 +108,17 @@ jobs:
           fi
         done
 
+        # Also fix include paths in C subdirectories
+        for mkfile in C*/Makefile; do
+          if [ -f "$mkfile" ]; then
+            sed -i "s|\\\$SIMPLE_EIFFEL|$SIMPLE_EIFFEL|g" "$mkfile"
+            sed -i "s|\$(SIMPLE_EIFFEL)|$SIMPLE_EIFFEL|g" "$mkfile"
+          fi
+        done
+
+        # Set include paths for SQLite headers
+        export CFLAGS="-I$SIMPLE_EIFFEL/eiffel_sqlite_2025/Clib"
+
         # Now run C compilation
         finish_freezing
       timeout-minutes: 20
