@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>simple_lsp - Eiffel LSP for VS Code</title>
+    <title>simple_lsp - Experimental Eiffel LSP for VS Code</title>
     <link rel="stylesheet" href="css/style.css">
-    <link rel="icon" type="image/png" href="images/logo.png">
 </head>
 <body>
     <header>
@@ -13,430 +12,165 @@
             <img src="https://raw.githubusercontent.com/simple-eiffel/claude_eiffel_op_docs/main/artwork/LOGO.png" alt="simple_* logo" class="logo">
         </div>
         <h1>simple_lsp</h1>
-        <p class="tagline">Eiffel Language Server Protocol for VS Code</p>
+        <p class="tagline">Experimental Eiffel LSP for VS Code</p>
         <div class="badges">
             <span class="badge badge-version">v0.8.5</span>
             <span class="badge badge-license">MIT</span>
-            <span class="badge badge-status">Beta</span>
+            <span class="badge badge-status" style="background-color: #dc3545;">Alpha</span>
         </div>
     </header>
 
     <nav>
         <ul>
             <li><a href="#overview">Overview</a></li>
+            <li><a href="#limitations">Limitations</a></li>
             <li><a href="#features">Features</a></li>
             <li><a href="#quick-start">Quick Start</a></li>
-            <li><a href="user-guide.html">User Guide</a></li>
-            <li><a href="api-reference.html">API Reference</a></li>
-            <li><a href="architecture.html">Architecture</a></li>
             <li><a href="https://github.com/simple-eiffel/simple_lsp">GitHub</a></li>
         </ul>
     </nav>
 
     <main>
-        <section id="overview">
-            <h2>Overview</h2>
-            <p>
-                <strong>simple_lsp</strong> brings modern IDE features to Eiffel development in Visual Studio Code.
-                Built with the <a href="https://github.com/simple-eiffel">Simple Eiffel</a> ecosystem,
-                it provides intelligent code navigation, completion, and documentation features.
+        <section id="warning" style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+            <h2 style="color: #856404; margin-top: 0;">Warning: Alpha Software</h2>
+            <p style="color: #856404;">
+                This is an <strong>experimental learning project</strong>, not ready for production use. 
+                While it demonstrates LSP concepts and works for small personal projects, it has significant limitations.
             </p>
-            <p>
-                The LSP server is written entirely in Eiffel using Design by Contract principles,
-                providing robust and reliable language services. Part of the <strong>simple_*</strong>
-                ecosystem of focused, single-purpose Eiffel libraries.
+            <p style="color: #856404;">
+                <strong>EiffelStudio remains the recommended IDE for serious Eiffel development.</strong>
             </p>
         </section>
 
-        <section id="features">
-            <h2>Features</h2>
+        <section id="overview">
+            <h2>Overview</h2>
+            <p>
+                <strong>simple_lsp</strong> is an experimental Eiffel Language Server Protocol implementation
+                for Visual Studio Code. It is a hobby project exploring LSP concepts, suitable for learning
+                and small personal projects only.
+            </p>
+            <p>
+                Built with the <a href="https://github.com/simple-eiffel">Simple Eiffel</a> ecosystem
+                as a learning exercise in LSP server development.
+            </p>
+        </section>
 
-            <h3>Core Navigation</h3>
+        <section id="limitations">
+            <h2>Known Limitations</h2>
+            <p>Being upfront about the current state:</p>
+            
+            <table class="api-table">
+                <thead>
+                    <tr>
+                        <th>Issue</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>False Positives</strong></td>
+                        <td>Parser reports errors on valid code, including EiffelStudio kernel classes</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Crashes on Large Projects</strong></td>
+                        <td>May crash when opening large codebases like Gobo</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Slow Indexing</strong></td>
+                        <td>Initial workspace scan can take 10-15 minutes on large codebases</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Basic Completion</strong></td>
+                        <td>Shows all symbols, not context-aware</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Limited References</strong></td>
+                        <td>Finds definitions, not all usages</td>
+                    </tr>
+                    <tr>
+                        <td><strong>No ECF Support</strong></td>
+                        <td>Does not read project configuration files</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Windows Only</strong></td>
+                        <td>Linux/macOS builds not available</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Who Is This For?</h3>
+            <ul>
+                <li><strong>Learners</strong> exploring how LSP servers work</li>
+                <li><strong>Experimenters</strong> wanting to try VS Code with Eiffel on small projects</li>
+                <li><strong>Contributors</strong> interested in helping improve Eiffel tooling</li>
+            </ul>
+            <p><strong>Not for:</strong> Production development, large projects, or professional Eiffel work.</p>
+        </section>
+
+        <section id="features">
+            <h2>Experimental Features</h2>
+            <p>These features work to varying degrees on small projects:</p>
+
+            <h3>Navigation (Basic)</h3>
             <div class="feature-grid">
                 <div class="feature-card">
                     <h4>Go to Definition</h4>
-                    <p><kbd>Ctrl+Click</kbd> or <kbd>F12</kbd> on any class or feature name to jump directly to its definition.</p>
+                    <p><kbd>Ctrl+Click</kbd> or <kbd>F12</kbd> to jump to class or feature definitions.</p>
                 </div>
                 <div class="feature-card">
                     <h4>Find References</h4>
-                    <p><kbd>Shift+F12</kbd> to find all usages of a symbol across your workspace.</p>
-                </div>
-                <div class="feature-card">
-                    <h4>Go to Implementation</h4>
-                    <p><kbd>Ctrl+F12</kbd> to jump from a deferred feature to its concrete implementations.</p>
+                    <p><kbd>Shift+F12</kbd> to find symbol definitions (not all usages).</p>
                 </div>
                 <div class="feature-card">
                     <h4>Document Symbols</h4>
-                    <p><kbd>Ctrl+Shift+O</kbd> to see an outline of features in the current file.</p>
-                </div>
-                <div class="feature-card">
-                    <h4>Workspace Symbols</h4>
-                    <p><kbd>Ctrl+T</kbd> to search for any symbol across your entire workspace.</p>
-                </div>
-                <div class="feature-card">
-                    <h4>Rename Symbol</h4>
-                    <p><kbd>F2</kbd> to safely rename features and classes across your entire workspace.</p>
+                    <p><kbd>Ctrl+Shift+O</kbd> to see features in the current file.</p>
                 </div>
             </div>
 
-            <h3>Intelligent Hover</h3>
+            <h3>Documentation (Basic)</h3>
             <div class="feature-grid">
                 <div class="feature-card">
                     <h4>Hover Documentation</h4>
-                    <p>Hover over any identifier to see feature signatures, comments, and contract information.</p>
-                </div>
-                <div class="feature-card">
-                    <h4>Type Aliases</h4>
-                    <p>Shows resolved type for aliases (INTEGER shows as INTEGER_32, STRING as STRING_8).</p>
-                </div>
-                <div class="feature-card">
-                    <h4>Inheritance Chain</h4>
-                    <p>View the full inheritance hierarchy from EIFGENs metadata.</p>
-                </div>
-                <div class="feature-card">
-                    <h4>Feature Origin</h4>
-                    <p>See which ancestor class originally defined or last redefined a feature.</p>
-                </div>
-                <div class="feature-card">
-                    <h4>Flat Contracts</h4>
-                    <p>View all preconditions and postconditions from the entire inheritance chain, with attribution.</p>
-                </div>
-                <div class="feature-card">
-                    <h4>Clients/Suppliers</h4>
-                    <p>See which classes use this class (clients) and which classes this class uses (suppliers).</p>
+                    <p>Hover over identifiers to see feature signatures and comments.</p>
                 </div>
             </div>
 
-            <h3>Code Intelligence</h3>
+            <h3>Code Intelligence (Limited)</h3>
             <div class="feature-grid">
                 <div class="feature-card">
                     <h4>Code Completion</h4>
-                    <p><kbd>Ctrl+Space</kbd> for intelligent autocomplete of classes and features.</p>
-                </div>
-                <div class="feature-card">
-                    <h4>Signature Help</h4>
-                    <p>Automatic parameter hints when typing feature calls showing argument types.</p>
-                </div>
-                <div class="feature-card">
-                    <h4>Document Highlighting</h4>
-                    <p>All occurrences of a symbol are highlighted when the cursor is on it.</p>
-                </div>
-            </div>
-
-            <h3>Hierarchy Views</h3>
-            <div class="feature-grid">
-                <div class="feature-card">
-                    <h4>Call Hierarchy</h4>
-                    <p><kbd>Ctrl+Shift+H</kbd> to see who calls a feature (incoming) and what it calls (outgoing).</p>
-                </div>
-                <div class="feature-card">
-                    <h4>Type Hierarchy</h4>
-                    <p>View the inheritance tree: supertypes (ancestors) and subtypes (descendants).</p>
-                </div>
-            </div>
-
-            <h3>Test Discovery</h3>
-            <div class="feature-grid">
-                <div class="feature-card">
-                    <h4>Test Explorer</h4>
-                    <p>Automatic discovery of test classes (EQA_TEST_SET descendants) and test methods (test_*).</p>
-                </div>
-            </div>
-
-            <h3>DbC Analytics</h3>
-            <div class="feature-grid">
-                <div class="feature-card">
-                    <h4>DbC Heatmap</h4>
-                    <p><kbd>Ctrl+Shift+H</kbd> for an interactive visualization of Design by Contract coverage across your ecosystem. See census statistics and drill down into libraries.</p>
-                </div>
-                <div class="feature-card">
-                    <h4>Contract Census</h4>
-                    <p>Side-by-side statistics panel showing totals, distribution metrics, contract coverage percentages, and ranked TOP 10 lists with clickable library links.</p>
+                    <p><kbd>Ctrl+Space</kbd> for basic autocomplete (shows all symbols, not context-aware).</p>
                 </div>
             </div>
         </section>
 
         <section id="quick-start">
             <h2>Quick Start</h2>
-
-            <div class="quick-start">
-                <h3>Windows Installer (Recommended)</h3>
-                <ol>
-                    <li>Download <code>simple_lsp_setup_0.8.5.exe</code> from
-                        <a href="https://github.com/simple-eiffel/simple_lsp/releases">Releases</a></li>
-                    <li>Run the installer</li>
-                    <li>Open VS Code with any folder containing <code>.e</code> files</li>
-                    <li>Start coding!</li>
-                </ol>
-            </div>
-
-            <h3>Manual Installation</h3>
             <ol>
-                <li>Download and extract the release archive</li>
-                <li>Copy <code>simple_lsp.exe</code> to a permanent location</li>
-                <li>Set the <code>SIMPLE_LSP</code> environment variable:
-<pre><code>setx SIMPLE_LSP "C:\tools\simple_lsp"</code></pre>
-                </li>
-                <li>Install the VS Code extension from the included <code>.vsix</code> file</li>
+                <li>Download from <a href="https://github.com/simple-eiffel/simple_lsp/releases">Releases</a></li>
+                <li>Run the installer</li>
+                <li>Open VS Code with a folder containing <code>.e</code> files</li>
+                <li>Try it on a <strong>small project only</strong></li>
             </ol>
-
-            <h3>VS Code Configuration</h3>
-            <p>The extension automatically finds the LSP server. To configure manually:</p>
-<pre><code>{
-    "eiffel.lsp.serverPath": "C:/path/to/simple_lsp.exe"
-}</code></pre>
         </section>
 
-        <section id="ucf-setup">
-            <h2>Universe Configuration File (UCF) Setup</h2>
-            <p>
-                For cross-library navigation and complete workspace indexing, simple_lsp uses a
-                <strong>Universe Configuration File (UCF)</strong>. This file tells the LSP server about
-                all the libraries in your project.
-            </p>
-
-            <h3>Creating a UCF File</h3>
-            <p>Create a file named <code>universe.ucf</code> in your workspace root:</p>
-<pre><code>{
-    "name": "my_project",
-    "version": "1.0.0",
-    "libraries": [
-        {
-            "name": "my_app",
-            "path": "${WORKSPACE}/src"
-        },
-        {
-            "name": "simple_json",
-            "path": "${SIMPLE_JSON}"
-        },
-        {
-            "name": "simple_sql",
-            "path": "${SIMPLE_SQL}"
-        }
-    ]
-}</code></pre>
-
-            <h3>UCF Variables</h3>
-            <table class="ucf-vars">
-                <tr><th>Variable</th><th>Description</th></tr>
-                <tr><td><code>${WORKSPACE}</code></td><td>The workspace root directory (where VS Code opened)</td></tr>
-                <tr><td><code>${ISE_LIBRARY}</code></td><td>EiffelStudio library path</td></tr>
-                <tr><td><code>${ENV_VAR}</code></td><td>Any environment variable (e.g., ${SIMPLE_JSON})</td></tr>
-            </table>
-
-            <h3>Benefits of UCF</h3>
+        <section id="contributing">
+            <h2>Contributing</h2>
+            <p>Contributions welcome! We especially appreciate:</p>
             <ul>
-                <li><strong>Cross-library Go to Definition</strong> - Jump to definitions in any library</li>
-                <li><strong>Complete Completion</strong> - Autocomplete from all configured libraries</li>
-                <li><strong>Full References</strong> - Find all usages across the entire universe</li>
-                <li><strong>Inheritance Resolution</strong> - See complete inheritance chains</li>
+                <li>Bug reports with reproduction steps</li>
+                <li>Parser improvements (reducing false errors)</li>
+                <li>Performance optimizations</li>
+                <li>Linux/macOS testing and builds</li>
             </ul>
-
-            <h3>Auto-detection</h3>
-            <p>
-                If no UCF file is found, simple_lsp will index only the <code>.e</code> files in the workspace root.
-                For single-library projects, this is often sufficient.
-            </p>
-        </section>
-
-        <section id="feature-guide">
-            <h2>Feature Guide</h2>
-
-            <h3>Go to Definition (F12)</h3>
-            <p>Place your cursor on any class name or feature call and press <kbd>F12</kbd> (or <kbd>Ctrl+Click</kbd>).</p>
-            <ul>
-                <li>Works with class names: <code>MY_CLASS</code> jumps to class declaration</li>
-                <li>Works with feature calls: <code>do_something</code> jumps to feature definition</li>
-                <li>Works across libraries when UCF is configured</li>
-            </ul>
-
-            <h3>Go to Implementation (Ctrl+F12)</h3>
-            <p>For deferred (abstract) features, jumps to concrete implementations in descendant classes.</p>
-<pre><code>deferred class ANIMAL
-feature
-    make_sound
-        deferred  -- Press Ctrl+F12 here
-        end
-end
-
-class DOG inherit ANIMAL
-feature
-    make_sound do print ("Woof!") end  -- Jumps here
-end</code></pre>
-
-            <h3>Call Hierarchy (Ctrl+Shift+H)</h3>
-            <p>Opens a panel showing:</p>
-            <ul>
-                <li><strong>Incoming Calls</strong>: Which features call this feature?</li>
-                <li><strong>Outgoing Calls</strong>: What features does this feature call?</li>
-            </ul>
-            <p>Right-click on a feature and select "Show Call Hierarchy" or use the keyboard shortcut.</p>
-
-            <h3>Type Hierarchy</h3>
-            <p>Shows the inheritance tree for a class:</p>
-            <ul>
-                <li><strong>Supertypes</strong>: All ancestor classes in the inheritance chain</li>
-                <li><strong>Subtypes</strong>: All descendant classes that inherit from this class</li>
-            </ul>
-            <p>Right-click on a class name and select "Show Type Hierarchy".</p>
-
-            <h3>Flat Contract View (Hover)</h3>
-            <p>
-                When you hover over a feature, the documentation includes a "Flat Contracts" section
-                showing all preconditions and postconditions from the entire inheritance chain:
-            </p>
-<pre><code>**make_deposit** *(from ACCOUNT)*
-
-```eiffel
-make_deposit (amount: REAL)
-```
-
-**Flat Contracts:**
-
-*Preconditions:*
-  - `amount > 0` ← *ACCOUNT*
-  - `not is_frozen` ← *BANK_ACCOUNT*
-
-*Postconditions:*
-  - `balance = old balance + amount` ← *ACCOUNT*</code></pre>
-
-            <h3>Feature Origin (Hover)</h3>
-            <p>
-                When hovering over an inherited feature, shows which class originally defined it:
-            </p>
-<pre><code>**make** *(from COMPARABLE)*
-
-The "(from COMPARABLE)" indicates this feature was introduced
-in the COMPARABLE ancestor class.</code></pre>
-
-            <h3>Test Discovery</h3>
-            <p>
-                simple_lsp automatically discovers test classes and methods:
-            </p>
-            <ul>
-                <li>Test classes: Classes inheriting from <code>EQA_TEST_SET</code> or <code>TEST_SET</code></li>
-                <li>Test methods: Features whose names start with <code>test_</code></li>
-            </ul>
-            <p>Use the custom LSP commands to discover and run tests:</p>
-<pre><code>// Custom LSP methods for test integration
-eiffel/discoverTests - Returns all test classes and methods
-eiffel/runTest       - Run a single test
-eiffel/runAllTests   - Run all discovered tests</code></pre>
-        </section>
-
-        <section id="how-it-works">
-            <h2>How It Works</h2>
-            <ol>
-                <li>VS Code launches <code>simple_lsp.exe</code> when you open an Eiffel file</li>
-                <li>The server parses and indexes all <code>.e</code> files in your workspace</li>
-                <li>If <code>universe.ucf</code> exists, additional libraries are indexed</li>
-                <li>Symbol information is stored in <code>.eiffel_lsp/symbols.db</code> (SQLite)</li>
-                <li>The server responds to LSP requests (hover, definition, completion, etc.)</li>
-                <li>Debug logs are written to <code>.eiffel_lsp/lsp.log</code></li>
-            </ol>
-
-            <h3>EIFGENs Integration</h3>
-            <p>
-                When an <code>EIFGENs</code> folder exists (from a previous compilation), simple_lsp
-                reads metadata to provide enhanced features:
-            </p>
-            <ul>
-                <li>Complete inheritance chains from compiled class descriptors</li>
-                <li>Standard library class information (STRING, ARRAY, etc.)</li>
-                <li>Accurate type resolution including generics</li>
-            </ul>
-        </section>
-
-        <section id="keyboard-shortcuts">
-            <h2>Keyboard Shortcuts</h2>
-            <table>
-                <tr><th>Shortcut</th><th>Action</th></tr>
-                <tr><td><kbd>F12</kbd></td><td>Go to Definition</td></tr>
-                <tr><td><kbd>Ctrl+Click</kbd></td><td>Go to Definition (alternate)</td></tr>
-                <tr><td><kbd>Ctrl+F12</kbd></td><td>Go to Implementation</td></tr>
-                <tr><td><kbd>Shift+F12</kbd></td><td>Find All References</td></tr>
-                <tr><td><kbd>F2</kbd></td><td>Rename Symbol</td></tr>
-                <tr><td><kbd>Ctrl+Space</kbd></td><td>Trigger Completion</td></tr>
-                <tr><td><kbd>Ctrl+Shift+O</kbd></td><td>Document Symbols (Outline)</td></tr>
-                <tr><td><kbd>Ctrl+T</kbd></td><td>Workspace Symbols</td></tr>
-                <tr><td><kbd>Ctrl+Shift+H</kbd></td><td>Show Call Hierarchy</td></tr>
-            </table>
-        </section>
-
-        <section id="troubleshooting">
-            <h2>Troubleshooting</h2>
-
-            <h3>LSP not starting</h3>
-            <ul>
-                <li>Check that <code>SIMPLE_LSP</code> environment variable is set</li>
-                <li>Verify <code>simple_lsp.exe</code> exists at the configured path</li>
-                <li>Check VS Code Output panel (View > Output > Eiffel LSP)</li>
-            </ul>
-
-            <h3>Features not working</h3>
-            <ul>
-                <li>Check <code>.eiffel_lsp/lsp.log</code> for error messages</li>
-                <li>Delete <code>.eiffel_lsp/symbols.db</code> to force re-indexing</li>
-                <li>Compile your project to generate EIFGENs metadata</li>
-            </ul>
-
-            <h3>Cross-library navigation not working</h3>
-            <ul>
-                <li>Create a <code>universe.ucf</code> file (see UCF Setup section)</li>
-                <li>Verify environment variables are set correctly</li>
-                <li>Check that library paths exist</li>
-            </ul>
-        </section>
-
-        <section id="documentation">
-            <h2>Documentation</h2>
-            <div class="feature-grid">
-                <div class="feature-card">
-                    <h4><a href="user-guide.html">User Guide</a></h4>
-                    <p>Complete guide for VS Code users. Learn how to use every LSP feature with step-by-step instructions and use cases.</p>
-                </div>
-                <div class="feature-card">
-                    <h4><a href="api-reference.html">API Reference</a></h4>
-                    <p>Developer documentation for all classes and features. Includes contracts, database schema, and extension guide.</p>
-                </div>
-                <div class="feature-card">
-                    <h4><a href="architecture.html">Architecture</a></h4>
-                    <p>System design and implementation details. Component diagrams, data flow, and build instructions.</p>
-                </div>
-            </div>
-        </section>
-
-        <section id="building">
-            <h2>Building from Source</h2>
-            <h3>Prerequisites</h3>
-            <ul>
-                <li>EiffelStudio 25.02+</li>
-                <li>Visual Studio 2022 (for C compilation)</li>
-                <li>Node.js 18+ (for VS Code extension)</li>
-            </ul>
-
-            <h3>Build Commands</h3>
-<pre><code><span class="comment"># Set the SIMPLE_EIFFEL environment variable</span>
-<span class="keyword">export</span> SIMPLE_EIFFEL=/d/prod
-# All simple_* libraries are under this path
-
-
-<span class="comment"># Compile LSP server (finalized with contracts)</span>
-<span class="keyword">cd</span> /path/to/simple_lsp
-ec.exe -batch -config simple_lsp.ecf -target simple_lsp_exe -finalize -keep -c_compile
-
-<span class="comment"># Build VS Code extension</span>
-<span class="keyword">cd</span> vscode-extension
-npm install && npm run compile && npx vsce package</code></pre>
         </section>
     </main>
 
     <footer>
-        <p>&copy; 2025 simple_* ecosystem. MIT License.</p>
+        <p>2025 simple_* ecosystem. MIT License.</p>
         <p>
             <a href="https://github.com/simple-eiffel/simple_lsp">GitHub</a> |
-            <a href="https://simple-eiffel.github.io">Documentation</a> |
-            <a href="https://www.eiffel.org">Eiffel Language</a>
+            <a href="https://simple-eiffel.github.io">Documentation</a>
         </p>
     </footer>
 </body>
