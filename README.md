@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/simple-eiffel/.github/main/profile/assets/logo.svg" alt="simple_ library logo" width="400">
+  <img src="docs/images/logo.svg" alt="simple_lsp logo" width="400">
 </p>
 
 # simple_lsp
