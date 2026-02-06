@@ -49,3 +49,4 @@ out/
 # Local data
 EIFDATA/
 output/
+*.epr
