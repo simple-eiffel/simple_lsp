@@ -219,8 +219,8 @@ feature {NONE} -- Implementation
 			if l_dir.exists then
 				l_entries := l_dir.entries
 				across l_entries as entry loop
-					if entry.name.as_string_8.ends_with ("_tests.ecf") then
-						Result := workspace_root + "/" + entry.name.as_string_8
+					if entry.name.to_string_8.ends_with ("_tests.ecf") then
+						Result := workspace_root + "/" + entry.name.to_string_8
 					end
 				end
 			end
