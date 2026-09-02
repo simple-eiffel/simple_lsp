@@ -9,32 +9,32 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Eiffel](https://img.shields.io/badge/Eiffel-25.02-blue.svg)](https://www.eiffel.org/)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.75+-007ACC.svg)](https://code.visualstudio.com/)
-[![Status](https://img.shields.io/badge/Status-Alpha-red.svg)]()
+[![Status](https://img.shields.io/badge/Status-Beta-orange.svg)]()
 
 Experimental Eiffel Language Server Protocol (LSP) implementation for VS Code.
 
 Part of the [Simple Eiffel](https://github.com/simple-eiffel) ecosystem.
 
-> **Warning: Alpha Software**
+> **Warning: Beta Software**
 >
-> This is an experimental learning project, **not ready for production use**. While it demonstrates LSP concepts and works for small personal projects, it has significant limitations:
+> This is an experimental project, **not yet ready for production use**. It demonstrates LSP concepts and works for real projects, but still has limitations:
 >
-> - Parser may report false errors on valid Eiffel code (including kernel classes)
-> - May crash on large projects (e.g., Gobo)
-> - Initial indexing can take 10-15 minutes on large codebases
+> - Initial workspace indexing is slow on large codebases (re-parses every file on each cold start)
 > - Code completion is basic and not context-aware
+>
+> The parser was overhauled in 2026-06 and now parses the **entire EiffelStudio 25.02 library (3,957 files) and the whole simple_* ecosystem (13,660 files, including Gobo) with zero false errors** — the former "false positives on kernel classes" and "crashes on Gobo" limitations are resolved.
 >
 > **EiffelStudio remains the recommended IDE for serious Eiffel development.**
 >
 > Contributions and feedback welcome!
 
-**Developed using AI-assisted methodology:** Built interactively with Claude Opus 4.5 as a learning exercise.
+**Developed using AI-assisted methodology:** Built interactively with Claude (Opus 4.5, parser overhaul by Fable 5) following Design by Contract principles.
 
 ## Status
 
-**Alpha** - Experimental proof-of-concept, suitable for exploration and very small projects only.
+**Beta** - Working LSP implementation with an accurate parser, suitable for exploration and real projects, with a known cold-indexing performance cost on large universes.
 
-This is a hobby project exploring LSP implementation in Eiffel. It demonstrates many LSP features but lacks the robustness and accuracy required for professional work.
+This project explores LSP implementation in Eiffel. As of the 2026-06 parser overhaul it parses the full EiffelStudio library and the entire simple_* ecosystem without false errors; the main remaining gap is cold-start indexing speed and context-aware completion.
 
 ## Overview
 
@@ -55,9 +55,7 @@ Being upfront about the current state:
 
 | Issue | Description |
 |-------|-------------|
-| **False Positives** | Parser reports errors on valid code, including EiffelStudio kernel classes |
-| **Crashes on Large Projects** | May crash when opening large codebases like Gobo |
-| **Slow Indexing** | Initial workspace scan can take 10-15 minutes on large codebases |
+| **Slow Cold Indexing** | First workspace scan re-parses every `.e` file; the symbol DB caches by mtime, but the parse itself is not yet skipped for unchanged files, so cold starts on large universes are slow |
 | **Basic Completion** | Shows all symbols, not context-aware (does not filter by type) |
 | **Limited References** | Finds definitions, not all usages |
 | **No ECF Support** | Does not read project configuration files |
@@ -135,12 +133,10 @@ The extension automatically finds simple_lsp.exe by searching:
 
 These are ideas we would like to explore, not commitments:
 
-- **Better parsing** - Reduce false positives, handle edge cases
+- **Incremental indexing** - Skip re-parsing unchanged files on cold start (mtime is already tracked in the symbol DB; the parse just needs to be guarded by it) for near-instant warm starts
 - **Context-aware completion** - Filter by expected type
 - **ECF support** - Read project configuration
-- **Incremental indexing** - Faster updates on file changes
 - **Linux/macOS builds** - Cross-platform support
-- **Stability improvements** - Handle large projects without crashing
 
 ## Contributing
 
