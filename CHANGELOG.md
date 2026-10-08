@@ -5,6 +5,17 @@ All notable changes to simple_lsp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.8] - 2026-10-08
+
+### Fixed
+- The test build now compiles with zero warnings, so `ec.sh test` exits 0
+  instead of 2. The 21 VWMA(1) warnings in LSP_SYMBOL_DATABASE came from
+  untyped `<<...>>` SQL argument arrays passed as `ARRAY [detachable ANY]`;
+  each one is now typed explicitly (`{ARRAY [detachable ANY]} <<...>>`).
+
+### Note
+- Releases 0.7.x through 0.8.7 have no entries in this file.
+
 ## [0.6.0] - 2025-12-10
 
 ### Added
