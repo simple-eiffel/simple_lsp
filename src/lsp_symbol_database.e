@@ -39,7 +39,7 @@ feature -- Class Operations
 		do
 			db.run_sql_with (
 				"INSERT OR REPLACE INTO classes (name, file_path, line, column, file_mtime) VALUES (?, ?, ?, ?, ?)",
-				<<a_name, a_file_path, a_line, a_column, a_mtime>>)
+				{ARRAY [detachable ANY]} <<a_name, a_file_path, a_line, a_column, a_mtime>>)
 		end
 
 	add_class_full (a_name, a_file_path: STRING; a_line, a_column: INTEGER;
@@ -53,7 +53,7 @@ feature -- Class Operations
 			db.run_sql_with (
 				"INSERT OR REPLACE INTO classes (name, file_path, line, column, is_deferred, is_expanded, is_frozen, header_comment, file_mtime) " +
 				"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-				<<a_name, a_file_path, a_line, a_column,
+				{ARRAY [detachable ANY]} <<a_name, a_file_path, a_line, a_column,
 				  bool_to_int (a_is_deferred), bool_to_int (a_is_expanded), bool_to_int (a_is_frozen),
 				  a_header_comment, a_mtime>>)
 		end
@@ -65,7 +65,7 @@ feature -- Class Operations
 		local
 			l_result: SIMPLE_SQL_RESULT
 		do
-			l_result := db.fetch_with ("SELECT id, file_path, line, column FROM classes WHERE name = ? COLLATE NOCASE", <<a_name>>)
+			l_result := db.fetch_with ("SELECT id, file_path, line, column FROM classes WHERE name = ? COLLATE NOCASE", {ARRAY [detachable ANY]} <<a_name>>)
 			if not l_result.is_empty then
 				Result := [l_result.first.integer_value ("id"),
 				           l_result.first.string_value ("file_path").to_string_8,
@@ -81,7 +81,7 @@ feature -- Class Operations
 		local
 			l_result: SIMPLE_SQL_RESULT
 		do
-			l_result := db.fetch_with ("SELECT id FROM classes WHERE name = ? COLLATE NOCASE", <<a_name>>)
+			l_result := db.fetch_with ("SELECT id FROM classes WHERE name = ? COLLATE NOCASE", {ARRAY [detachable ANY]} <<a_name>>)
 			if not l_result.is_empty then
 				Result := l_result.first.integer_value ("id")
 			end
@@ -110,7 +110,7 @@ feature -- Feature Operations
 		do
 			db.run_sql_with (
 				"INSERT INTO features (class_id, name, kind, line, column) VALUES (?, ?, ?, ?, ?)",
-				<<a_class_id, a_name, a_kind, a_line, a_column>>)
+				{ARRAY [detachable ANY]} <<a_class_id, a_name, a_kind, a_line, a_column>>)
 		end
 
 	add_feature_full (a_class_id: INTEGER; a_name, a_kind: STRING; a_line, a_column: INTEGER;
@@ -125,7 +125,7 @@ feature -- Feature Operations
 				"INSERT INTO features (class_id, name, kind, line, column, return_type, signature, " +
 				"precondition, postcondition, header_comment, is_deferred, is_frozen, export_status) " +
 				"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-				<<a_class_id, a_name, a_kind, a_line, a_column,
+				{ARRAY [detachable ANY]} <<a_class_id, a_name, a_kind, a_line, a_column,
 				  a_return_type, a_signature, a_precondition, a_postcondition, a_header_comment,
 				  bool_to_int (a_is_deferred), bool_to_int (a_is_frozen), a_export_status>>)
 		end
@@ -142,7 +142,7 @@ feature -- Feature Operations
 				"SELECT c.file_path, f.line, f.column, f.signature, f.header_comment " +
 				"FROM features f JOIN classes c ON f.class_id = c.id " +
 				"WHERE c.name = ? COLLATE NOCASE AND f.name = ? COLLATE NOCASE",
-				<<a_class_name, a_feature_name>>)
+				{ARRAY [detachable ANY]} <<a_class_name, a_feature_name>>)
 			if not l_result.is_empty then
 				Result := [l_result.first.string_value ("file_path").to_string_8,
 				           l_result.first.integer_value ("line"),
@@ -164,7 +164,7 @@ feature -- Feature Operations
 				"SELECT f.name, f.kind, f.signature, f.line " +
 				"FROM features f JOIN classes c ON f.class_id = c.id " +
 				"WHERE c.name = ? COLLATE NOCASE ORDER BY f.line",
-				<<a_class_name>>)
+				{ARRAY [detachable ANY]} <<a_class_name>>)
 			across l_result.rows as row loop
 				Result.extend ([row.string_value ("name").to_string_8,
 				               row.string_value ("kind").to_string_8,
@@ -185,7 +185,7 @@ feature -- Feature Operations
 				"SELECT c.name as class_name, c.file_path, f.line " +
 				"FROM features f JOIN classes c ON f.class_id = c.id " +
 				"WHERE f.name = ? COLLATE NOCASE",
-				<<a_name>>)
+				{ARRAY [detachable ANY]} <<a_name>>)
 			across l_result.rows as row loop
 				Result.extend ([row.string_value ("class_name").to_string_8,
 				               row.string_value ("file_path").to_string_8,
@@ -232,7 +232,7 @@ feature -- Feature Operations
 				"JOIN classes c ON f.class_id = c.id " +
 				"WHERE f.name LIKE ? COLLATE NOCASE " +
 				"LIMIT 100",
-				<<l_pattern, l_pattern>>)
+				{ARRAY [detachable ANY]} <<l_pattern, l_pattern>>)
 			across l_result.rows as row loop
 				Result.extend ([row.string_value ("name").to_string_8,
 				               row.string_value ("kind").to_string_8,
@@ -253,7 +253,7 @@ feature -- Type Reference Operations (Client/Supplier)
 		do
 			db.run_sql_with (
 				"INSERT OR IGNORE INTO type_references (from_class_id, to_type_name, context) VALUES (?, ?, ?)",
-				<<a_from_class_id, a_to_type_name.as_upper, a_context>>)
+				{ARRAY [detachable ANY]} <<a_from_class_id, a_to_type_name.as_upper, a_context>>)
 		end
 
 	suppliers_of (a_class_name: STRING): ARRAYED_LIST [STRING]
@@ -269,7 +269,7 @@ feature -- Type Reference Operations (Client/Supplier)
 				"JOIN classes c ON tr.from_class_id = c.id " +
 				"WHERE c.name = ? COLLATE NOCASE " +
 				"ORDER BY tr.to_type_name",
-				<<a_class_name>>)
+				{ARRAY [detachable ANY]} <<a_class_name>>)
 			across l_result.rows as row loop
 				Result.extend (row.string_value ("to_type_name").to_string_8)
 			end
@@ -288,7 +288,7 @@ feature -- Type Reference Operations (Client/Supplier)
 				"JOIN classes c ON tr.from_class_id = c.id " +
 				"WHERE tr.to_type_name = ? COLLATE NOCASE " +
 				"ORDER BY c.name",
-				<<a_class_name>>)
+				{ARRAY [detachable ANY]} <<a_class_name>>)
 			across l_result.rows as row loop
 				Result.extend (row.string_value ("name").to_string_8)
 			end
@@ -299,7 +299,7 @@ feature -- Type Reference Operations (Client/Supplier)
 		require
 			class_exists: a_class_id > 0
 		do
-			db.run_sql_with ("DELETE FROM type_references WHERE from_class_id = ?", <<a_class_id>>)
+			db.run_sql_with ("DELETE FROM type_references WHERE from_class_id = ?", {ARRAY [detachable ANY]} <<a_class_id>>)
 		end
 
 feature -- Inheritance Operations
@@ -312,7 +312,7 @@ feature -- Inheritance Operations
 		do
 			db.run_sql_with (
 				"INSERT INTO inheritance (child_id, parent_name) VALUES (?, ?)",
-				<<a_child_id, a_parent_name>>)
+				{ARRAY [detachable ANY]} <<a_child_id, a_parent_name>>)
 		end
 
 	parents_of (a_class_name: STRING): ARRAYED_LIST [STRING]
@@ -327,7 +327,7 @@ feature -- Inheritance Operations
 				"SELECT i.parent_name FROM inheritance i " +
 				"JOIN classes c ON i.child_id = c.id " +
 				"WHERE c.name = ? COLLATE NOCASE",
-				<<a_class_name>>)
+				{ARRAY [detachable ANY]} <<a_class_name>>)
 			across l_result.rows as row loop
 				Result.extend (row.string_value ("parent_name").to_string_8)
 			end
@@ -342,7 +342,7 @@ feature -- File Operations
 		local
 			l_result: SIMPLE_SQL_RESULT
 		do
-			l_result := db.fetch_with ("SELECT file_mtime FROM classes WHERE file_path = ? LIMIT 1", <<a_path>>)
+			l_result := db.fetch_with ("SELECT file_mtime FROM classes WHERE file_path = ? LIMIT 1", {ARRAY [detachable ANY]} <<a_path>>)
 			if not l_result.is_empty then
 				Result := l_result.first.integer_64_value ("file_mtime")
 			end
@@ -354,7 +354,7 @@ feature -- File Operations
 			path_not_empty: a_path /= Void and then not a_path.is_empty
 		do
 			-- Features and inheritance are deleted by CASCADE
-			db.run_sql_with ("DELETE FROM classes WHERE file_path = ?", <<a_path>>)
+			db.run_sql_with ("DELETE FROM classes WHERE file_path = ?", {ARRAY [detachable ANY]} <<a_path>>)
 		end
 
 feature -- Diagnostics
@@ -367,7 +367,7 @@ feature -- Diagnostics
 		do
 			db.run_sql_with (
 				"INSERT INTO parse_errors (file_path, line, column, message, severity) VALUES (?, ?, ?, ?, ?)",
-				<<a_file_path, a_line, a_column, a_message, a_severity>>)
+				{ARRAY [detachable ANY]} <<a_file_path, a_line, a_column, a_message, a_severity>>)
 		end
 
 	errors_for_file (a_path: STRING): ARRAYED_LIST [TUPLE [line, column: INTEGER; message, severity: STRING]]
@@ -380,7 +380,7 @@ feature -- Diagnostics
 			create Result.make (5)
 			l_result := db.fetch_with (
 				"SELECT line, column, message, severity FROM parse_errors WHERE file_path = ?",
-				<<a_path>>)
+				{ARRAY [detachable ANY]} <<a_path>>)
 			across l_result.rows as row loop
 				Result.extend ([row.integer_value ("line"),
 				               row.integer_value ("column"),
@@ -394,7 +394,7 @@ feature -- Diagnostics
 		require
 			path_not_empty: a_path /= Void and then not a_path.is_empty
 		do
-			db.run_sql_with ("DELETE FROM parse_errors WHERE file_path = ?", <<a_path>>)
+			db.run_sql_with ("DELETE FROM parse_errors WHERE file_path = ?", {ARRAY [detachable ANY]} <<a_path>>)
 		end
 
 	all_file_paths: ARRAYED_LIST [STRING]
