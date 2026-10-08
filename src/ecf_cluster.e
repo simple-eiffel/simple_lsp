@@ -22,20 +22,62 @@ feature {NONE} -- Initialization
 
 feature -- Access
 
-	name: STRING_32
+	name: STRING_32 assign set_name
 			-- Cluster name
 
-	location: STRING_32
+	location: STRING_32 assign set_location
 			-- Original location from ECF (may be relative like .\src\)
 
-	resolved_path: STRING_32
+	resolved_path: STRING_32 assign set_resolved_path
 			-- Resolved absolute path
 
-	target_name: STRING_32
+	target_name: STRING_32 assign set_target_name
 			-- Target this cluster belongs to
 
-	is_recursive: BOOLEAN
+	is_recursive: BOOLEAN assign set_is_recursive
 			-- Should subdirectories be included?
+
+feature -- Element change
+
+	set_name (a_name: STRING_32)
+			-- Set `name'.
+		do
+			name := a_name
+		ensure
+			name_set: name = a_name
+		end
+
+	set_location (a_location: STRING_32)
+			-- Set `location'.
+		do
+			location := a_location
+		ensure
+			location_set: location = a_location
+		end
+
+	set_resolved_path (a_resolved_path: STRING_32)
+			-- Set `resolved_path'.
+		do
+			resolved_path := a_resolved_path
+		ensure
+			resolved_path_set: resolved_path = a_resolved_path
+		end
+
+	set_target_name (a_target_name: STRING_32)
+			-- Set `target_name'.
+		do
+			target_name := a_target_name
+		ensure
+			target_name_set: target_name = a_target_name
+		end
+
+	set_is_recursive (a_is_recursive: BOOLEAN)
+			-- Set `is_recursive'.
+		do
+			is_recursive := a_is_recursive
+		ensure
+			is_recursive_set: is_recursive = a_is_recursive
+		end
 
 feature -- Status
 

@@ -5,6 +5,14 @@ All notable changes to simple_lsp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.9] - 2026-10-08
+
+### Fixed
+- The library target compiles again: LSP_ECF_PARSER assigned `name`, `location`, `resolved_path`,
+  `target_name`, `is_readonly`/`is_recursive`, `extends`, `root_class`, `root_feature` and `all_classes`
+  with `:=` on ECF_LIBRARY, ECF_CLUSTER and ECF_TARGET, whose attributes had no assigner (15 VBAC(2)).
+  Each attribute now declares `assign` with a matching setter.
+
 ## [0.8.8] - 2026-10-08
 
 ### Fixed
