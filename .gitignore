@@ -50,3 +50,6 @@ out/
 EIFDATA/
 output/
 *.epr
+
+# Local leftovers
+tmp_ws/
