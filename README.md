@@ -61,7 +61,7 @@ Being upfront about the current state:
 | **Limited References** | Finds definitions, not all usages |
 | **No ECF Support** | Does not read project configuration files |
 | **Single Workspace** | No multi-root workspace support |
-| **Windows Only** | Linux/macOS builds not available |
+| **macOS/Linux not checked in an editor** | The server builds and its unit tests pass; no release ships yet, and navigation and rename are untested there |
 
 ## Who Is This For?
 
@@ -73,7 +73,7 @@ Being upfront about the current state:
 
 ## Quick Start
 
-### Windows Installer
+### Windows Installer (Windows only)
 
 1. Download simple_lsp_setup_0.6.0.exe from [Releases](https://github.com/simple-eiffel/simple_lsp/releases)
 2. Run the installer
@@ -118,7 +118,7 @@ The extension automatically finds simple_lsp.exe by searching:
 
 ## Requirements
 
-- **Windows 10/11** (64-bit)
+- **Windows 10/11** (64-bit); macOS and Linux: build from source (no installer yet)
 - **VS Code 1.75+**
 - No additional runtime dependencies (statically linked)
 
@@ -137,7 +137,7 @@ These are ideas we would like to explore, not commitments:
 - **Incremental indexing** - Skip re-parsing unchanged files on cold start (mtime is already tracked in the symbol DB; the parse just needs to be guarded by it) for near-instant warm starts
 - **Context-aware completion** - Filter by expected type
 - **ECF support** - Read project configuration
-- **Linux/macOS builds** - Cross-platform support
+- **Linux/macOS releases** - Ship binaries and check the editor features
 
 ## Contributing
 
@@ -146,7 +146,7 @@ Contributions welcome! This is an experimental project, so we especially appreci
 - Bug reports with reproduction steps
 - Parser improvements (reducing false errors)
 - Performance optimizations
-- Linux/macOS testing and builds
+- Linux/macOS testing in VS Code
 - Documentation improvements
 
 ## License
