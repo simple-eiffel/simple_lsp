@@ -286,9 +286,7 @@ feature {NONE} -- Implementation
 		require
 			path_not_void: a_path /= Void
 		do
-			create Result.make_from_string ("file:///")
-			Result.append (a_path.twin)
-			Result.replace_substring_all ("\", "/")
+			Result := file_uri.from_path (a_path)
 		ensure
 			result_not_void: Result /= Void
 		end
@@ -297,6 +295,15 @@ feature {NONE} -- Implementation
 			-- Log debug message
 		do
 			logger.log_debug (a_msg)
+		end
+
+
+feature {NONE} -- File URIs
+
+	file_uri: LSP_FILE_URI
+			-- The one conversion between paths and file:// URIs.
+		once
+			create Result
 		end
 
 end

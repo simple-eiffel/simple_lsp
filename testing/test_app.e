@@ -25,6 +25,9 @@ feature {NONE} -- Initialization
 			run_test (agent tests.test_symbol_database_creation, "test_symbol_database_creation")
 			run_test (agent tests.test_add_and_find_class, "test_add_and_find_class")
 			run_test (agent tests.test_add_and_find_feature, "test_add_and_find_feature")
+			run_test (agent tests.test_file_uris_round_trip, "test_file_uris_round_trip")
+			run_test (agent tests.test_definition_uris_for_posix_and_windows_paths, "test_definition_uris_for_posix_and_windows_paths")
+			run_test (agent tests.test_rename_uris_round_trip_a_real_file, "test_rename_uris_round_trip_a_real_file")
 
 			print ("%N========================%N")
 			print ("Results: " + passed.out + " passed, " + failed.out + " failed%N")
@@ -55,6 +58,9 @@ feature {NONE} -- Implementation
 			end
 		rescue
 			print ("  FAIL: " + a_name + "%N")
+			if attached (create {EXCEPTION_MANAGER}).last_exception as l_e and then attached l_e.description as l_why then
+				print ("        " + {UTF_CONVERTER}.string_32_to_utf_8_string_8 (l_why.to_string_32) + "%N")
+			end
 			failed := failed + 1
 			l_retried := True
 			retry
