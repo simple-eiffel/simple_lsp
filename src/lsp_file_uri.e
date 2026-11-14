@@ -37,7 +37,7 @@ feature -- Conversion
 
 	to_path (a_uri: STRING): STRING
 			-- The local path `a_uri' names: POSIX paths keep their leading "/", a drive path
-			-- (file:///C:/...) does not.
+			-- (file:///C:/...) does not, and on Windows the separators are backslashes.
 		require
 			uri_not_void: a_uri /= Void
 		do
@@ -47,6 +47,11 @@ feature -- Conversion
 				if Result.count >= 3 and then Result.item (1) = '/' and then Result.item (3) = ':' and then Result.item (2).is_alpha then
 						-- /C:/proj -> C:/proj
 					Result := Result.substring (2, Result.count)
+				end
+				if {PLATFORM}.is_windows then
+						-- the file system's own separators, so the path compares equal to one
+						-- Windows gives and opens as one
+					Result.replace_substring_all ("/", "\")
 				end
 			end
 		ensure

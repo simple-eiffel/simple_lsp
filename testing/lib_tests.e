@@ -135,32 +135,43 @@ feature -- Tests: file URIs
 	test_file_uris_round_trip
 			-- Paths and file:// URIs turn into each other the same way for every handler: a POSIX
 			-- path gives three slashes, never four (go-to-definition and rename on macOS and Linux
-			-- built file:////Users/...), a Windows path's backslashes become slashes, and an
-			-- editor's encoded drive (file:///c%3A/...) comes back as the path.
+			-- built file:////Users/...), a Windows path's backslashes become slashes, an editor's
+			-- encoded drive (file:///c%3A/...) comes back as the path, and a path comes back with
+			-- this platform's own separators.
 		local
 			u: LSP_FILE_URI
 		do
 			create u
 			assert_strings_equal ("posix", "file:///Users/me/proj/a.e", u.from_path ("/Users/me/proj/a.e"))
-			assert_strings_equal ("posix back", "/Users/me/proj/a.e", u.to_path ("file:///Users/me/proj/a.e"))
 			assert_strings_equal ("windows", "file:///C:/proj/src/a.e", u.from_path ("C:\proj\src\a.e"))
-			assert_strings_equal ("windows back", "C:/proj/src/a.e", u.to_path ("file:///C:/proj/src/a.e"))
-			assert_strings_equal ("editor's drive", "c:/proj/a.e", u.to_path ("file:///c%%3A/proj/a.e"))
 			assert_strings_equal ("spaces and #", "file:///Users/me/my%%20proj/c%%23/a.e", u.from_path ("/Users/me/my proj/c#/a.e"))
-			assert_strings_equal ("spaces and # back", "/Users/me/my proj/c#/a.e", u.to_path (u.from_path ("/Users/me/my proj/c#/a.e")))
-			assert_strings_equal ("a percent survives", "/tmp/100%%/a.e", u.to_path (u.from_path ("/tmp/100%%/a.e")))
+			if {PLATFORM}.is_windows then
+				assert_strings_equal ("windows back", "C:\proj\src\a.e", u.to_path ("file:///C:/proj/src/a.e"))
+				assert_strings_equal ("editor's drive", "c:\proj\a.e", u.to_path ("file:///c%%3A/proj/a.e"))
+				assert_strings_equal ("a windows path round trip", "C:\my proj\c#\a.e", u.to_path (u.from_path ("C:\my proj\c#\a.e")))
+				assert_strings_equal ("a percent survives", "C:\100%%\a.e", u.to_path (u.from_path ("C:\100%%\a.e")))
+			else
+				assert_strings_equal ("posix back", "/Users/me/proj/a.e", u.to_path ("file:///Users/me/proj/a.e"))
+				assert_strings_equal ("a drive path stays as written", "C:/proj/src/a.e", u.to_path ("file:///C:/proj/src/a.e"))
+				assert_strings_equal ("editor's drive", "c:/proj/a.e", u.to_path ("file:///c%%3A/proj/a.e"))
+				assert_strings_equal ("spaces and # back", "/Users/me/my proj/c#/a.e", u.to_path (u.from_path ("/Users/me/my proj/c#/a.e")))
+				assert_strings_equal ("a percent survives", "/tmp/100%%/a.e", u.to_path (u.from_path ("/tmp/100%%/a.e")))
+			end
 		end
 
 	test_definition_uris_for_posix_and_windows_paths
 			-- Go-to-definition answers a class's location with the URI of its path, for a POSIX
-			-- path and a Windows path alike.
+			-- path and a Windows path alike, on every platform (the paths are only indexed, not
+			-- opened).
 		local
-			l_db: LSP_SYMBOL_DATABASE
-			l_logger: LSP_LOGGER
+			l_db: detachable LSP_SYMBOL_DATABASE
+			l_logger: detachable LSP_LOGGER
 			l_handler: LSP_NAVIGATION_HANDLER
+			l_dir: STRING
 		do
-			create l_db.make ("test_uri_symbols.db")
-			create l_logger.make ("test_uri.log")
+			l_dir := fresh_test_directory ("definition")
+			create l_db.make (l_dir + separator + "symbols.db")
+			create l_logger.make (l_dir + separator + "lsp.log")
 			l_db.add_class ("POSIX_WIDGET", "/home/me/proj/posix_widget.e", 3, 1, 0)
 			l_db.add_class ("WINDOWS_WIDGET", "C:\proj\src\windows_widget.e", 5, 1, 0)
 			create l_handler.make (l_db, l_logger, create {EIFFEL_PARSER}.make)
@@ -174,34 +185,31 @@ feature -- Tests: file URIs
 			else
 				assert ("windows class found", False)
 			end
-			l_db.close
-			delete_test_file ("test_uri_symbols.db")
-			delete_test_file ("test_uri.log")
+			close_and_remove (l_db, l_logger, l_dir)
+		rescue
+			close_and_remove (l_db, l_logger, l_dir)
 		end
 
 	test_rename_uris_round_trip_a_real_file
 			-- Rename edits a real file under this platform's own path: every URI in the edit is a
-			-- proper file URI (never four slashes), and the file's own turns back into its path.
+			-- proper file URI (never four slashes), and the file's own turns back into its path,
+			-- with this platform's separators.
 		local
-			l_db: LSP_SYMBOL_DATABASE
-			l_logger: LSP_LOGGER
+			l_db: detachable LSP_SYMBOL_DATABASE
+			l_logger: detachable LSP_LOGGER
 			l_handler: LSP_RENAME_HANDLER
-			l_dir: DIRECTORY
 			l_file: PLAIN_TEXT_FILE
-			l_path, l_json, l_uri: STRING
+			l_dir, l_path, l_json, l_uri: STRING
 			u: LSP_FILE_URI
 		do
 			create u
-			create l_dir.make_with_path ((create {EXECUTION_ENVIRONMENT}).current_working_path.extended ("rename uri test"))
-			if not l_dir.exists then
-				l_dir.recursive_create_dir
-			end
-			l_path := l_dir.path.extended ("old_gadget.e").name.to_string_8
+			l_dir := fresh_test_directory ("rename uri test")
+			l_path := l_dir + separator + "old_gadget.e"
 			create l_file.make_create_read_write (l_path)
 			l_file.put_string ("class%N%TOLD_GADGET%Nend%N")
 			l_file.close
-			create l_db.make ("test_rename_symbols.db")
-			create l_logger.make ("test_rename.log")
+			create l_db.make (l_dir + separator + "symbols.db")
+			create l_logger.make (l_dir + separator + "lsp.log")
 			l_db.add_class ("OLD_GADGET", l_path, 2, 2, 0)
 			create l_handler.make (l_db, l_logger)
 			if attached l_handler.compute_workspace_edit ("OLD_GADGET", "NEW_GADGET") as l_edit then
@@ -210,18 +218,76 @@ feature -- Tests: file URIs
 				assert ("no four-slash uri: " + l_json, not l_json.has_substring ("file:////"))
 				l_uri := u.from_path (l_path)
 				assert ("the file's own uri: " + l_uri, l_json.has_substring (l_uri))
-				assert_strings_equal ("and back", l_path.twin, u.to_path (l_uri).twin)
+				assert_strings_equal ("and back", l_path, u.to_path (l_uri))
 			else
 				assert ("an edit", False)
 			end
-			l_db.close
-			delete_test_file ("test_rename_symbols.db")
-			delete_test_file ("test_rename.log")
-			delete_test_file (l_path)
-			l_dir.delete
+			close_and_remove (l_db, l_logger, l_dir)
+		rescue
+			close_and_remove (l_db, l_logger, l_dir)
 		end
 
 feature {NONE} -- Implementation
+
+	separator: STRING
+			-- This platform's directory separator.
+		once
+			Result := {OPERATING_ENVIRONMENT}.directory_separator.out
+		end
+
+	fresh_test_directory (a_name: STRING): STRING
+			-- An empty folder `a_name' under simple_lsp_tests in the system's temporary folder
+			-- (TEMP, TMPDIR, or the platform's own): never the checkout the tests run from.
+		local
+			l_env: EXECUTION_ENVIRONMENT
+			l_dir: DIRECTORY
+		do
+			create l_env
+			if attached l_env.item ("TEMP") as l_temp then
+				Result := l_temp.to_string_8
+			elseif attached l_env.item ("TMPDIR") as l_temp then
+				Result := l_temp.to_string_8
+			elseif {PLATFORM}.is_windows then
+				Result := "C:\Windows\Temp"
+			else
+				Result := "/tmp"
+			end
+			if Result.ends_with (separator) then
+				Result.remove_tail (1)
+			end
+			Result := Result + separator + "simple_lsp_tests" + separator + a_name
+			create l_dir.make (Result)
+			if l_dir.exists then
+				l_dir.recursive_delete
+			end
+			l_dir.recursive_create_dir
+		end
+
+	close_and_remove (a_db: detachable LSP_SYMBOL_DATABASE; a_logger: detachable LSP_LOGGER; a_dir: detachable STRING)
+			-- Close what a test opened (Windows refuses to delete an open file), then remove its
+			-- folder. Safe to run twice, and from a rescue clause.
+		local
+			l_dir: DIRECTORY
+			l_tried: BOOLEAN
+		do
+			if not l_tried then
+				if attached a_db then
+					a_db.close
+				end
+				if attached a_logger then
+					a_logger.close
+				end
+				if attached a_dir as al_dir then
+					create l_dir.make (al_dir)
+					if l_dir.exists then
+						l_dir.recursive_delete
+					end
+				end
+			end
+		rescue
+			l_tried := True
+			retry
+		end
 
 	uri_of (a_location: SIMPLE_JSON_OBJECT): STRING
 			-- The "uri" of an LSP location.
