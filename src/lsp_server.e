@@ -2339,19 +2339,7 @@ feature {NONE} -- Path Helpers
 		require
 			uri_not_void: a_uri /= Void
 		do
-			Result := a_uri.twin
-			-- URL decode first (%%3A -> :)
-			Result := url_decode (Result)
-			if Result.starts_with ("file:///") then
-				Result := Result.substring (9, Result.count)
-				-- Handle Windows drive letters (file:///C:/...)
-				if Result.count >= 2 and then Result.item (2) = ':' then
-					-- Keep as-is for Windows (D:/prod/...)
-				else
-					-- Unix path - add leading slash
-					Result := "/" + Result
-				end
-			end
+			Result := file_uri.to_path (a_uri)
 		ensure
 			result_not_void: Result /= Void
 		end
@@ -2362,16 +2350,7 @@ feature {NONE} -- Path Helpers
 			path_not_void: a_path /= Void
 			path_not_empty: not a_path.is_empty
 		do
-			Result := "file:///"
-			if a_path.count >= 2 and then a_path.item (2) = ':' then
-				-- Windows path
-				Result.append (a_path)
-			else
-				-- Unix path
-				Result.append (a_path.substring (2, a_path.count))
-			end
-			-- URL encode spaces
-			Result.replace_substring_all (" ", "%%20")
+			Result := file_uri.from_path (a_path)
 		ensure
 			result_not_void: Result /= Void
 			result_has_prefix: Result.starts_with ("file:///")
@@ -2636,6 +2615,15 @@ feature {NONE} -- Universe Configuration
 			end
 		end
 
+
+feature {NONE} -- File URIs
+
+	file_uri: LSP_FILE_URI
+			-- The one conversion between paths and file:// URIs.
+		once
+			create Result
+		end
+
 invariant
 	workspace_not_void: workspace_root /= Void
 	workspace_not_empty: not workspace_root.is_empty
@@ -2646,5 +2634,6 @@ invariant
 	cache_exists: document_cache /= Void
 	eifgens_parser_exists: eifgens_parser /= Void
 	universe_exists: universe /= Void
+
 
 end

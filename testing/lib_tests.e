@@ -130,7 +130,108 @@ feature -- Tests
 			delete_test_file (l_path)
 		end
 
+feature -- Tests: file URIs
+
+	test_file_uris_round_trip
+			-- Paths and file:// URIs turn into each other the same way for every handler: a POSIX
+			-- path gives three slashes, never four (go-to-definition and rename on macOS and Linux
+			-- built file:////Users/...), a Windows path's backslashes become slashes, and an
+			-- editor's encoded drive (file:///c%3A/...) comes back as the path.
+		local
+			u: LSP_FILE_URI
+		do
+			create u
+			assert_strings_equal ("posix", "file:///Users/me/proj/a.e", u.from_path ("/Users/me/proj/a.e"))
+			assert_strings_equal ("posix back", "/Users/me/proj/a.e", u.to_path ("file:///Users/me/proj/a.e"))
+			assert_strings_equal ("windows", "file:///C:/proj/src/a.e", u.from_path ("C:\proj\src\a.e"))
+			assert_strings_equal ("windows back", "C:/proj/src/a.e", u.to_path ("file:///C:/proj/src/a.e"))
+			assert_strings_equal ("editor's drive", "c:/proj/a.e", u.to_path ("file:///c%%3A/proj/a.e"))
+			assert_strings_equal ("spaces and #", "file:///Users/me/my%%20proj/c%%23/a.e", u.from_path ("/Users/me/my proj/c#/a.e"))
+			assert_strings_equal ("spaces and # back", "/Users/me/my proj/c#/a.e", u.to_path (u.from_path ("/Users/me/my proj/c#/a.e")))
+			assert_strings_equal ("a percent survives", "/tmp/100%%/a.e", u.to_path (u.from_path ("/tmp/100%%/a.e")))
+		end
+
+	test_definition_uris_for_posix_and_windows_paths
+			-- Go-to-definition answers a class's location with the URI of its path, for a POSIX
+			-- path and a Windows path alike.
+		local
+			l_db: LSP_SYMBOL_DATABASE
+			l_logger: LSP_LOGGER
+			l_handler: LSP_NAVIGATION_HANDLER
+		do
+			create l_db.make ("test_uri_symbols.db")
+			create l_logger.make ("test_uri.log")
+			l_db.add_class ("POSIX_WIDGET", "/home/me/proj/posix_widget.e", 3, 1, 0)
+			l_db.add_class ("WINDOWS_WIDGET", "C:\proj\src\windows_widget.e", 5, 1, 0)
+			create l_handler.make (l_db, l_logger, create {EIFFEL_PARSER}.make)
+			if attached l_handler.find_definition ("POSIX_WIDGET") as l_location then
+				assert_strings_equal ("posix uri", "file:///home/me/proj/posix_widget.e", uri_of (l_location))
+			else
+				assert ("posix class found", False)
+			end
+			if attached l_handler.find_definition ("WINDOWS_WIDGET") as l_location then
+				assert_strings_equal ("windows uri", "file:///C:/proj/src/windows_widget.e", uri_of (l_location))
+			else
+				assert ("windows class found", False)
+			end
+			l_db.close
+			delete_test_file ("test_uri_symbols.db")
+			delete_test_file ("test_uri.log")
+		end
+
+	test_rename_uris_round_trip_a_real_file
+			-- Rename edits a real file under this platform's own path: every URI in the edit is a
+			-- proper file URI (never four slashes), and the file's own turns back into its path.
+		local
+			l_db: LSP_SYMBOL_DATABASE
+			l_logger: LSP_LOGGER
+			l_handler: LSP_RENAME_HANDLER
+			l_dir: DIRECTORY
+			l_file: PLAIN_TEXT_FILE
+			l_path, l_json, l_uri: STRING
+			u: LSP_FILE_URI
+		do
+			create u
+			create l_dir.make_with_path ((create {EXECUTION_ENVIRONMENT}).current_working_path.extended ("rename uri test"))
+			if not l_dir.exists then
+				l_dir.recursive_create_dir
+			end
+			l_path := l_dir.path.extended ("old_gadget.e").name.to_string_8
+			create l_file.make_create_read_write (l_path)
+			l_file.put_string ("class%N%TOLD_GADGET%Nend%N")
+			l_file.close
+			create l_db.make ("test_rename_symbols.db")
+			create l_logger.make ("test_rename.log")
+			l_db.add_class ("OLD_GADGET", l_path, 2, 2, 0)
+			create l_handler.make (l_db, l_logger)
+			if attached l_handler.compute_workspace_edit ("OLD_GADGET", "NEW_GADGET") as l_edit then
+				l_json := l_edit.as_json
+				l_json.replace_substring_all ("\/", "/")
+				assert ("no four-slash uri: " + l_json, not l_json.has_substring ("file:////"))
+				l_uri := u.from_path (l_path)
+				assert ("the file's own uri: " + l_uri, l_json.has_substring (l_uri))
+				assert_strings_equal ("and back", l_path.twin, u.to_path (l_uri).twin)
+			else
+				assert ("an edit", False)
+			end
+			l_db.close
+			delete_test_file ("test_rename_symbols.db")
+			delete_test_file ("test_rename.log")
+			delete_test_file (l_path)
+			l_dir.delete
+		end
+
 feature {NONE} -- Implementation
+
+	uri_of (a_location: SIMPLE_JSON_OBJECT): STRING
+			-- The "uri" of an LSP location.
+		do
+			if attached a_location.string_item ("uri") as l_uri then
+				Result := l_uri.to_string_8
+			else
+				Result := "(none)"
+			end
+		end
 
 	delete_test_file (a_path: STRING)
 			-- Delete test file if exists
